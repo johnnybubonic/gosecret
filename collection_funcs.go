@@ -7,6 +7,17 @@ import (
 // NewCollection returns a pointer to a new Collection based on a Dbus connection and a Dbus path.
 func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err error) {
 
+	// dbus.Conn.Names() will ALWAYS return a []0string with at least ONE element.
+	if conn == nil || (conn.Names() == nil || len(conn.Names()) < 1) {
+		err = ErrNoDbusConn
+		return
+	}
+
+	if path == "" {
+		err = ErrBadDbusPath
+		return
+	}
+
 	coll = &Collection{
 		Conn: conn,
 		Dbus: conn.Object(DBusServiceName, path),
@@ -15,31 +26,22 @@ func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err
 	return
 }
 
-// Path returns the dbus.ObjectPath of the Collection.
-func (c Collection) Path() (coll dbus.ObjectPath) {
-
-	// Remove this method in V1. It's bloat since we now have an exported Dbus.
-	coll = c.Dbus.Path()
-
-	return
-}
-
-// Items returns a slice of Item items in the Collection.
-func (c *Collection) Items() (items []Item, err error) {
+// Items returns a slice of Item pointers in the Collection.
+func (c *Collection) Items() (items []*Item, err error) {
 
 	var variant dbus.Variant
 	var paths []dbus.ObjectPath
 
-	if variant, err = c.Dbus.GetProperty("org.freedesktop.Secret.Collection.Items"); err != nil {
+	if variant, err = c.Dbus.GetProperty(DbusItemsID); err != nil {
 		return
 	}
 
 	paths = variant.Value().([]dbus.ObjectPath)
 
-	items = make([]Item, len(paths))
+	items = make([]*Item, len(paths))
 
 	for idx, path := range paths {
-		items[idx] = *NewItem(c.Conn, path)
+		items[idx] = NewItem(c.Conn, path)
 	}
 
 	return
@@ -51,7 +53,7 @@ func (c *Collection) Delete() (err error) {
 	var promptPath dbus.ObjectPath
 	var prompt *Prompt
 
-	if err = c.Dbus.Call("org.freedesktop.Secret.Collection.Delete", 0).Store(&promptPath); err != nil {
+	if err = c.Dbus.Call(DbusCollectionDelete, 0).Store(&promptPath); err != nil {
 		return
 	}
 
