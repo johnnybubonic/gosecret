@@ -1,0 +1,62 @@
+= libsecret/gosecret
+Brent Saner <bts@square-r00t.net>
+Last updated {localdatetime}
+:doctype: book
+:docinfo: shared
+:data-uri:
+:imagesdir: images
+:sectlinks:
+:sectnums:
+:sectnumlevels: 7
+:toc: preamble
+:toc2: left
+:idprefix:
+:toclevels: 7
+:source-highlighter: rouge
+
+This project is originally forked from https://github.com/gsterjov/go-libsecret[go-libsecret^] due to:
+
+* Lack of response from the developer
+* Complete lack of documentation
+* Poor, ineffecient, or just plain antipattern design
+* Missing functionality
+
+and as such, hopefully this library should serve as a more effective libsecret/SecretService interface.
+
+== Backwards Compatability/Drop-In Replacement Support
+Version series `v0.X.X` of this library promises full and non-breaking backwards support of API interaction with the original project. The only changes should be internal optimizations, adding documentation, some file reorganizing, adding Golang module support, etc. -- all transparent from the library API itself.
+
+To use this library as a replacement without significantly modifying your code, you can simply use a `replace` directive:
+
+// TODO: did I do this correctly? I never really use replacements so someone PR if this is incorrect.
+.go.mod
+[source]
+----
+# ...
+replace (
+    github.com/gsterjov/go-libsecret dev => r00t2.io/gosecret v0
+)
+----
+
+and then run `go mod tidy`.
+
+== New Developer API
+Starting from `v1.0.0` onwards, entirely breaking changes can be assumed from the original project.
+
+To use the new version,
+
+[source,go]
+----
+import (
+    `r00t2.io/gosecret/v1`
+)
+----
+
+To reflect the absolute breaking changes, the module name changes as well from `libsecret` to `gosecret`.
+
+== Usage
+Full documentation can be found via inline documentation. Either via the https://pkg.go.dev/r00t2.io/gosecret[pkg.go.dev documentation^] or https://pkg.go.dev/golang.org/x/tools/cmd/godoc[`godoc`^] (or `go doc`) in the source root.
+
+////
+However, here's a quick demonstration.
+////
