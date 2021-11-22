@@ -1,4 +1,4 @@
-package libsecret
+package gosecret
 
 import (
 	`github.com/godbus/dbus`

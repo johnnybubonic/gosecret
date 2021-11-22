@@ -1,4 +1,4 @@
-package libsecret
+package gosecret
 
 const (
 	DBusServiceName string = "org.freedesktop.secrets"

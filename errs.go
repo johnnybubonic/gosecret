@@ -1,10 +1,10 @@
-package libsecret
+package gosecret
 
 import (
 	`errors`
 )
 
 var (
-	ErrNoDbusConn error = errors.New("no valid dbus connection")
+	ErrNoDbusConn  error = errors.New("no valid dbus connection")
 	ErrBadDbusPath error = errors.New("invalid dbus path")
 )

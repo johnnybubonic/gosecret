@@ -1,11 +1,11 @@
-package libsecret
+package gosecret
 
 import (
 	`github.com/godbus/dbus`
 )
 
 // NewCollection returns a pointer to a new Collection based on a Dbus connection and a Dbus path.
-func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection) {
+func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err error) {
 
 	coll = &Collection{
 		Conn: conn,
