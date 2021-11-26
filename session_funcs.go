@@ -9,7 +9,7 @@ func NewSession(conn *dbus.Conn, path dbus.ObjectPath) (session *Session) {
 
 	session = &Session{
 		Conn: conn,
-		Dbus: conn.Object(DBusServiceName, path),
+		Dbus: conn.Object(DbusServiceName, path),
 	}
 
 	return

@@ -15,7 +15,7 @@ func NewService() (service *Service, err error) {
 	if service.Conn, err = dbus.SessionBus(); err != nil {
 		return
 	}
-	service.Dbus = service.Conn.Object(DBusServiceName, dbus.ObjectPath(DBusPath))
+	service.Dbus = service.Conn.Object(DbusServiceName, dbus.ObjectPath(DbusPath))
 
 	return
 }

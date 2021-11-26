@@ -7,7 +7,7 @@ import (
 // NewCollection returns a pointer to a new Collection based on a Dbus connection and a Dbus path.
 func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err error) {
 
-	// dbus.Conn.Names() will ALWAYS return a []0string with at least ONE element.
+	// dbus.Conn.Names() will ALWAYS return a []string with at least ONE element.
 	if conn == nil || (conn.Names() == nil || len(conn.Names()) < 1) {
 		err = ErrNoDbusConn
 		return
@@ -20,7 +20,7 @@ func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err
 
 	coll = &Collection{
 		Conn: conn,
-		Dbus: conn.Object(DBusServiceName, path),
+		Dbus: conn.Object(DbusServiceName, path),
 	}
 
 	return
