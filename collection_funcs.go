@@ -1,8 +1,6 @@
 package gosecret
 
 import (
-	`fmt`
-	`path/filepath`
 	`strings`
 	`time`
 
@@ -40,8 +38,8 @@ func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err
 	}
 
 	coll = &Collection{
-		Conn:         conn,
-		Dbus:         conn.Object(DbusService, path),
+		Conn: conn,
+		Dbus: conn.Object(DbusService, path),
 		// lastModified: time.Now(),
 	}
 
