@@ -10,11 +10,13 @@ As such, hopefully this library should serve as a more effective libsecret/Secre
 
 Backwards Compatibility
 
-Version series `v0.X.X` of this library promises full and non-breaking backwards compatibility/drop-in	 support of API interaction with the original project.
+Version series `v0.X.X` of this library promises full and non-breaking backwards compatibility/drop-in
+support of API interaction with the original project.
 The only changes should be internal optimizations, adding documentation, some file reorganizing, adding Golang module support,
 etc. -- all transparent from the library API itself.
 
-To use this library as a replacement without significantly modifying your code, you can simply use a `replace` directive in your go.mod file:
+To use this library as a replacement without significantly modifying your code,
+you can simply use a `replace` directive in your go.mod file:
 
 	// ...
 	replace (
@@ -36,6 +38,61 @@ To use the new version,
 	)
 
 To reflect the absolute breaking changes, the module name changes as well from `libsecret` to `gosecret`.
+
+SecretService Concepts
+
+For reference:
+
+- A Service allows one to operate on/with Session objects.
+
+- A Session allows one to operate on/with Collection objects.
+
+- A Collection allows one to operate on/with Item objects.
+
+- An Item allows one to operate on/with Secrets.
+
+(Secrets are considered "terminating objects" in this model, and contain actual secret value(s) and metadata).
+
+Various interactions are handled by Prompts.
+
+So the object hierarchy in THEORY looks kind of like this:
+
+	Service
+	├─ Session "A"
+	│	├─ Collection "A.1"
+	│	│	├─ Item "A.1.a"
+	│	│	│	├─ Secret "A_1_a_I"
+	│	│	│	└─ Secret "A_1_a_II"
+	│	│	└─ Item "A.1.b"
+	│	│		├─ Secret "A_1_b_I"
+	│	│		└─ Secret "A_1_b_II"
+	│	└─ Collection "A.2"
+	│		├─ Item "A.2.a"
+	│		│	├─ Secret "A_2_a_I"
+	│		│	└─ Secret "A_2_a_II"
+	│		└─ Item "A.2.b"
+	│			├─ Secret "A_2_b_I"
+	│			└─ Secret "A_2_b_II"
+	└─ Session "B"
+		├─ Collection "B.1"
+		│	├─ Item "B.1.a"
+		│	│	├─ Secret "B_1_a_I"
+		│	│	└─ Secret "B_1_a_II"
+		│	└─ Item "B.1.b"
+		│		├─ Secret "B_1_b_I"
+		│		└─ Secret "B_1_b_II"
+		└─ Collection "B.2"#
+			├─ Item "B.2.a"
+			│	├─ Secret "B_2_a_I"
+			│	└─ Secret "B_2_a_II"
+			└─ Item "B.2.b"
+				├─ Secret "B_2_b_I"
+				└─ Secret "B_2_b_II"
+
+And so on.
+In PRACTICE, however, most users will only have two Session types
+(a default "system" one and a temporary one that may or may not exist, running in memory for the current login session)
+and a single Collection, named "login" (and aliased to "default", usually).
 
 Usage
 

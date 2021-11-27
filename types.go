@@ -1,8 +1,28 @@
 package gosecret
 
 import (
+	`time`
+
 	`github.com/godbus/dbus`
 )
+
+/*
+	MultiError is a type of error.Error that can contain multiple error.Errors. Confused? Don't worry about it.
+*/
+type MultiError struct {
+	// Errors is a slice of errors to combine/concatenate when .Error() is called.
+	Errors []error
+	// ErrorSep is a string to use to separate errors for .Error(). The default is "\n".
+	ErrorSep string
+}
+
+// ConnPathCheckResult contains the result of validConnPath.
+type ConnPathCheckResult struct {
+	// ConnOK is true if the dbus.Conn is valid.
+	ConnOK bool
+	// PathOK is true if the Dbus path given is a valid type and value.
+	PathOK bool
+}
 
 // DBusObject is any type that has a Path method that returns a dbus.ObjectPath.
 type DBusObject interface {
@@ -20,6 +40,8 @@ type Collection struct {
 	Conn *dbus.Conn
 	// Dbus is the Dbus bus object.
 	Dbus dbus.BusObject
+	// lastModified is unexported because it's important that API users don't change it; it's used by Collection.Modified.
+	lastModified time.Time
 }
 
 /*

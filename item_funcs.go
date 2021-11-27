@@ -9,17 +9,8 @@ func NewItem(conn *dbus.Conn, path dbus.ObjectPath) (item *Item) {
 
 	item = &Item{
 		Conn: conn,
-		Dbus: conn.Object(DbusServiceName, path),
+		Dbus: conn.Object(DbusService, path),
 	}
-
-	return
-}
-
-// Path returns the path of the underlying Dbus connection.
-func (i Item) Path() (path dbus.ObjectPath) {
-
-	// Remove this method in V1. It's bloat since we now have an exported Dbus.
-	path = i.Dbus.Path()
 
 	return
 }

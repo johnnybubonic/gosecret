@@ -1,27 +1,51 @@
 package gosecret
 
 import (
+	`fmt`
+	`path/filepath`
+	`strings`
+	`time`
+
 	`github.com/godbus/dbus`
 )
 
-// NewCollection returns a pointer to a new Collection based on a Dbus connection and a Dbus path.
-func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err error) {
+/*
+	CreateCollection creates a new Collection named `name` using the dbus.BusObject `secretServiceConn`.
+	`secretServiceConn` should be the same as used for Collection.Dbus (and/or NewCollection).
+	It will be called by NewCollection if the Collection does not exist in Dbus.
 
-	// dbus.Conn.Names() will ALWAYS return a []string with at least ONE element.
-	if conn == nil || (conn.Names() == nil || len(conn.Names()) < 1) {
+	Generally speaking, you should probably not use this function directly and instead use NewCollection.
+*/
+func CreateCollection(secretServiceConn *dbus.BusObject, name string) (c *Collection, err error) {
+
+	var path dbus.ObjectPath
+
+	if secretServiceConn == nil {
 		err = ErrNoDbusConn
 		return
 	}
 
-	if path == "" {
-		err = ErrBadDbusPath
+	path = dbus.ObjectPath(strings.Join([]string{DbusPath, ""}, "/"))
+
+	// TODO.
+
+	return
+}
+
+// NewCollection returns a pointer to a new Collection based on a Dbus connection and a Dbus path.
+func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err error) {
+
+	if _, err = validConnPath(conn, path); err != nil {
 		return
 	}
 
 	coll = &Collection{
-		Conn: conn,
-		Dbus: conn.Object(DbusServiceName, path),
+		Conn:         conn,
+		Dbus:         conn.Object(DbusService, path),
+		// lastModified: time.Now(),
 	}
+
+	_, _, err = coll.Modified()
 
 	return
 }
@@ -29,14 +53,11 @@ func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err
 // Items returns a slice of Item pointers in the Collection.
 func (c *Collection) Items() (items []*Item, err error) {
 
-	var variant dbus.Variant
 	var paths []dbus.ObjectPath
 
-	if variant, err = c.Dbus.GetProperty(DbusItemsID); err != nil {
+	if paths, err = pathsFromPath(c.Dbus, DbusCollectionItems); err != nil {
 		return
 	}
-
-	paths = variant.Value().([]dbus.ObjectPath)
 
 	items = make([]*Item, len(paths))
 
@@ -124,7 +145,7 @@ func (c *Collection) CreateItem(label string, secret *Secret, replace bool) (ite
 	return
 }
 
-// Locked indicates that a Collection is locked (true) or unlocked (false).
+// Locked indicates if a Collection is locked (true) or unlocked (false).
 func (c *Collection) Locked() (isLocked bool, err error) {
 
 	var variant dbus.Variant
@@ -135,6 +156,42 @@ func (c *Collection) Locked() (isLocked bool, err error) {
 	}
 
 	isLocked = variant.Value().(bool)
+
+	return
+}
+
+// Label returns the Collection label (name).
+func (c *Collection) Label() (label string, err error) {
+
+	// TODO.
+
+	return
+}
+
+// Created returns the time.Time of when a Collection was created.
+func (c *Collection) Created() (created time.Time, err error) {
+
+	// TODO.
+
+	return
+}
+
+/*
+	Modified returns the time.Time of when a Collection was last modified along with a boolean
+	that indicates if the collection has changed since the last call of Collection.Modified.
+
+	Note that when calling NewCollection, the internal library-tracked modification
+	time (Collection.lastModified) will be set to the modification time of the Collection
+	itself as reported by Dbus.
+*/
+func (c *Collection) Modified() (modified time.Time, isChanged bool, err error) {
+
+	// TODO.
+
+	if c.lastModified == time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC) {
+		// It's "nil", so set it to modified.
+		c.lastModified = modified
+	}
 
 	return
 }

@@ -9,7 +9,7 @@ func NewPrompt(conn *dbus.Conn, path dbus.ObjectPath) (prompt *Prompt) {
 
 	prompt = &Prompt{
 		Conn: conn,
-		Dbus: conn.Object(DbusServiceName, path),
+		Dbus: conn.Object(DbusService, path),
 	}
 
 	return
