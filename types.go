@@ -1,9 +1,9 @@
 package gosecret
 
 import (
-	`time`
+	"time"
 
-	`github.com/godbus/dbus`
+	"github.com/godbus/dbus"
 )
 
 /*
@@ -11,22 +11,70 @@ import (
 */
 type MultiError struct {
 	// Errors is a slice of errors to combine/concatenate when .Error() is called.
-	Errors []error
+	Errors []error `json:"errors"`
 	// ErrorSep is a string to use to separate errors for .Error(). The default is "\n".
-	ErrorSep string
+	ErrorSep string `json:"separator"`
+}
+
+/*
+	SecretServiceError is a translated error from SecretService API.
+	See https://developer-old.gnome.org/libsecret/unstable/libsecret-SecretError.html#SecretError and
+	ErrSecretService* errors.
+*/
+type SecretServiceError struct {
+	// ErrCode is the SecretService API's enum value.
+	ErrCode SecretServiceErrEnum `json:"code"`
+	// ErrName is the SecretService API's error name.
+	ErrName string `json:"name"`
+	/*
+		ErrDesc is the actual error description/text.
+		This is what should be displayed to users, and is returned by SecretServiceError.Error.
+	*/
+	ErrDesc string `json:"desc"`
 }
 
 // ConnPathCheckResult contains the result of validConnPath.
 type ConnPathCheckResult struct {
 	// ConnOK is true if the dbus.Conn is valid.
-	ConnOK bool
+	ConnOK bool `json:"conn"`
 	// PathOK is true if the Dbus path given is a valid type and value.
-	PathOK bool
+	PathOK bool `json:"path"`
 }
 
-// DBusObject is any type that has a Path method that returns a dbus.ObjectPath.
-type DBusObject interface {
-	Path() dbus.ObjectPath
+// DbusObject is a base struct type to be anonymized by other types.
+type DbusObject struct {
+	// Conn is an active connection to the Dbus.
+	Conn *dbus.Conn `json:"-"`
+	// Dbus is the Dbus bus object.
+	Dbus dbus.BusObject `json:"-"`
+}
+
+/*
+	Prompt is an interface to handling unlocking prompts.
+	https://developer-old.gnome.org/libsecret/0.18/SecretPrompt.html
+	https://specifications.freedesktop.org/secret-service/latest/ch09.html
+*/
+type Prompt struct {
+	*DbusObject
+}
+
+/*
+	Service is a general SecretService interface, sort of handler for Dbus - it's used for fetching a Session, Collections, etc.
+	https://developer-old.gnome.org/libsecret/0.18/SecretService.html
+	https://specifications.freedesktop.org/secret-service/latest/re01.html
+*/
+type Service struct {
+	*DbusObject
+	Session *Session `json:"-"`
+}
+
+/*
+	Session is a session/instance/connection to SecretService.
+	https://developer-old.gnome.org/libsecret/0.18/SecretService.html
+	https://specifications.freedesktop.org/secret-service/latest/ch06.html
+*/
+type Session struct {
+	*DbusObject
 }
 
 /*
@@ -36,10 +84,7 @@ type DBusObject interface {
 	https://specifications.freedesktop.org/secret-service/latest/ch03.html
 */
 type Collection struct {
-	// Conn is an active connection to the Dbus.
-	Conn *dbus.Conn
-	// Dbus is the Dbus bus object.
-	Dbus dbus.BusObject
+	*DbusObject
 	// lastModified is unexported because it's important that API users don't change it; it's used by Collection.Modified.
 	lastModified time.Time
 }
@@ -50,22 +95,7 @@ type Collection struct {
 	https://specifications.freedesktop.org/secret-service/latest/re03.html
 */
 type Item struct {
-	// Conn is an active connection to the Dbus.
-	Conn *dbus.Conn
-	// Dbus is the Dbus bus object.
-	Dbus dbus.BusObject
-}
-
-/*
-	Prompt is an interface to handling unlocking prompts.
-	https://developer-old.gnome.org/libsecret/0.18/SecretPrompt.html
-	https://specifications.freedesktop.org/secret-service/latest/ch09.html
-*/
-type Prompt struct {
-	// Conn is an active connection to the Dbus.
-	Conn *dbus.Conn
-	// Dbus is the Dbus bus object.
-	Dbus dbus.BusObject
+	*DbusObject
 }
 
 /*
@@ -76,35 +106,11 @@ type Prompt struct {
 */
 type Secret struct {
 	// Session is a Dbus object path for the associated Session.
-	Session dbus.ObjectPath
+	Session dbus.ObjectPath `json:"-"`
 	// Parameters are "algorithm dependent parameters for secret value encoding" - likely this will just be an empty byteslice.
-	Parameters []byte
+	Parameters []byte `json:"params"`
 	// Value is the secret's content in []byte format.
-	Value []byte
+	Value []byte `json:"value"`
 	// ContentType is the MIME type of Value.
-	ContentType string
-}
-
-/*
-	Service is a general SecretService interface, sort of handler for Dbus - it's used for fetching a Session, Collections, etc.
-	https://developer-old.gnome.org/libsecret/0.18/SecretService.html
-	https://specifications.freedesktop.org/secret-service/latest/re01.html
-*/
-type Service struct {
-	// Conn is an active connection to the Dbus.
-	Conn *dbus.Conn
-	// Dbus is the Dbus bus object.
-	Dbus dbus.BusObject
-}
-
-/*
-	Session is a session/instance/connection to SecretService.
-	https://developer-old.gnome.org/libsecret/0.18/SecretService.html
-	https://specifications.freedesktop.org/secret-service/latest/ch06.html
-*/
-type Session struct {
-	// Conn is an active connection to the Dbus.
-	Conn *dbus.Conn
-	// Dbus is the Dbus bus object.
-	Dbus dbus.BusObject
+	ContentType string `json:"content_type"`
 }

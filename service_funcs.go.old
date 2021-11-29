@@ -1,39 +1,42 @@
 package gosecret
 
 import (
-	"github.com/godbus/dbus"
+	`github.com/godbus/dbus`
 )
 
-// NewService returns a pointer to a new Service connection.
+// NewService returns a pointer to a new Service.
 func NewService() (service *Service, err error) {
 
-	var svc Service = Service{}
-
-	if svc.Conn, err = dbus.SessionBus(); err != nil {
-		return
-	}
-	svc.Dbus = service.Conn.Object(DbusService, dbus.ObjectPath(DbusPath))
-
-	if svc.Session, err = svc.Open(); err != nil {
-		return
+	service = &Service{
+		Conn: nil,
+		Dbus: nil,
 	}
 
-	service = &svc
+	if service.Conn, err = dbus.SessionBus(); err != nil {
+		return
+	}
+	service.Dbus = service.Conn.Object(DbusService, dbus.ObjectPath(DbusPath))
+
+	return
+}
+
+// Path returns the path of the underlying Dbus connection.
+func (s *Service) Path() (path dbus.ObjectPath) {
+
+	// Remove this method in V1. It's bloat since we now have an exported Dbus.
+	path = s.Dbus.Path()
 
 	return
 }
 
 // Open returns a pointer to a Session from the Service.
-func (s *Service) Open() (session *Session, output dbus.Variant, err error) {
+func (s *Service) Open() (session *Session, err error) {
 
+	var output dbus.Variant
 	var path dbus.ObjectPath
 
-	// In *theory*, SecretService supports multiple "algorithms" for encryption in-transit, but I don't think it's implemented (yet)?
-	// TODO: confirm this.
-	// Possible flags are dbus.Flags consts: https://pkg.go.dev/github.com/godbus/dbus#Flags
-	// Oddly, there is no "None" flag. So it's explicitly specified as a null byte.
 	if err = s.Dbus.Call(
-		DbusServiceOpenSession, 0x0, "plain", dbus.MakeVariant(""),
+		"org.freedesktop.Secret.Service.OpenSession", 0, "plain", dbus.MakeVariant(""),
 	).Store(&output, &path); err != nil {
 		return
 	}
@@ -43,7 +46,7 @@ func (s *Service) Open() (session *Session, output dbus.Variant, err error) {
 	return
 }
 
-// Collections returns a slice of Collection items accessible to this Service.
+// Collections returns a slice of Collection keyrings accessible to this Service.
 func (s *Service) Collections() (collections []Collection, err error) {
 
 	var paths []dbus.ObjectPath
@@ -64,7 +67,7 @@ func (s *Service) Collections() (collections []Collection, err error) {
 	return
 }
 
-// CreateCollection creates a new Collection (keyring) via a Service with the name specified by label and returns the new Collection.
+// CreateCollection creates a new Collection (keyring) via a Service with the name specified by label.
 func (s *Service) CreateCollection(label string) (collection *Collection, err error) {
 
 	var variant *dbus.Variant
