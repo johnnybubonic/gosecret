@@ -1,10 +1,10 @@
 package gosecret
 
 import (
-	`strings`
-	`time`
+	"strings"
+	"time"
 
-	`github.com/godbus/dbus`
+	"github.com/godbus/dbus"
 )
 
 /*
@@ -38,8 +38,10 @@ func NewCollection(conn *dbus.Conn, path dbus.ObjectPath) (coll *Collection, err
 	}
 
 	coll = &Collection{
-		Conn: conn,
-		Dbus: conn.Object(DbusService, path),
+		DbusObject: &DbusObject{
+			Conn: conn,
+			Dbus: conn.Object(DbusService, path),
+		},
 		// lastModified: time.Now(),
 	}
 

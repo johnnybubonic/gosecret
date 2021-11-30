@@ -27,13 +27,13 @@ const (
 	// DbusServiceCreateCollection is used to create a new Collection via Service.CreateCollection.
 	DbusServiceCreateCollection string = DbusInterfaceService + ".CreateCollection"
 
-	// DbusServiceGetSecrets is used to fetch all Secret / Item items in a given Collection (via Service.GetSecrets).
+	// DbusServiceGetSecrets is used to fetch multiple Secret values from multiple Item items in a given Collection (via Service.GetSecrets).
 	DbusServiceGetSecrets string = DbusInterfaceService + ".GetSecrets"
 
 	// DbusServiceLock is used by Service.Lock.
 	DbusServiceLock string = DbusInterfaceService + ".Lock"
 
-	// DbusServiceLockService is [FUNCTION UNKNOWN; TODO.]
+	// DbusServiceLockService is [FUNCTION UNKNOWN/UNDOCUMENTED; TODO.]
 	DbusServiceLockService string = DbusInterfaceService + ".LockService"
 
 	// DbusServiceOpenSession is used by Service.Open.
