@@ -4,24 +4,34 @@ import (
 	"github.com/godbus/dbus"
 )
 
-// NewSession returns a pointer to a new Session based on a Dbus connection and a Dbus path.
-func NewSession(conn *dbus.Conn, path dbus.ObjectPath) (session *Session) {
+/*
+	NewSession returns a pointer to a new Session based on a Service and a dbus.ObjectPath.
+	If path is empty (""), the default
+*/
+func NewSession(service *Service, path dbus.ObjectPath) (session *Session) {
 
-	session = &Session{
+	var ssn Session = Session{
 		&DbusObject{
-			Conn: conn,
-			Dbus: conn.Object(DbusService, path),
+			Conn: service.Conn,
 		},
 	}
+	session.Dbus = session.Conn.Object(DbusInterfaceSession, path)
+
+	session = &ssn
 
 	return
 }
 
-// Path returns the path of the underlying Dbus connection.
-func (s Session) Path() (path dbus.ObjectPath) {
+// Close cleanly closes a Session.
+func (s *Session) Close() (err error) {
 
-	// Remove this method in V1. It's bloat since we now have an exported Dbus.
-	path = s.Dbus.Path()
+	var c *dbus.Call
+
+	c = s.Dbus.Call(
+		DbusSessionClose, 0,
+	)
+
+	_ = c
 
 	return
 }

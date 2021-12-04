@@ -23,6 +23,14 @@ func NewService() (service *Service, err error) {
 	return
 }
 
+// Close cleanly closes a Service and all its underlying connections (e.g. Service.Session).
+func (s *Service) Close() (err error) {
+
+	err = s.Session.Close()
+
+	return
+}
+
 // Collections returns a slice of Collection items accessible to this Service.
 func (s *Service) Collections() (collections []Collection, err error) {
 
@@ -100,6 +108,20 @@ func (s *Service) CreateCollection(label string) (collection *Collection, err er
 }
 
 /*
+	GetAlias allows one to fetch a Collection dbus.ObjectPath based on an alias name.
+	If the alias does not exist, objectPath will be dbus.ObjectPath("/").
+	TODO: return a Collection instead of a dbus.ObjectPath.
+*/
+func (s *Service) GetAlias(alias string) (objectPath dbus.ObjectPath, err error) {
+
+	err = s.Dbus.Call(
+		DbusServiceReadAlias, 0, alias,
+	).Store(&objectPath)
+
+	return
+}
+
+/*
 	GetSecrets allows you to fetch values (Secret) from multiple Item object paths using this Service's Session.
 	An ErrMissingPaths will be returned for err if itemPaths is nil or empty.
 	The returned secrets is a map with itemPaths as the keys and their corresponding Secret as the value.
@@ -169,7 +191,10 @@ func (s *Service) Lock(objectPaths ...dbus.ObjectPath) (err error) {
 	return
 }
 
-// Open returns a pointer to a Session from the Service.
+/*
+	Open returns a pointer to a Session from the Service.
+	It's a convenience function around NewSession.
+*/
 func (s *Service) Open() (session *Session, output dbus.Variant, err error) {
 
 	var path dbus.ObjectPath
@@ -179,12 +204,43 @@ func (s *Service) Open() (session *Session, output dbus.Variant, err error) {
 	// Possible flags are dbus.Flags consts: https://pkg.go.dev/github.com/godbus/dbus#Flags
 	// Oddly, there is no "None" flag. So it's explicitly specified as a null byte.
 	if err = s.Dbus.Call(
-		DbusServiceOpenSession, 0x0, "plain", dbus.MakeVariant(""),
+		DbusServiceOpenSession, 0, "plain", dbus.MakeVariant(""),
 	).Store(&output, &path); err != nil {
 		return
 	}
 
-	session = NewSession(s.Conn, path)
+	session = NewSession(s, path)
+
+	return
+}
+
+/*
+	SearchItems searches all Collection objects and returns all matches based on the map of attributes.
+	TODO: return arrays of Items instead of dbus.ObjectPaths.
+	TODO: check attributes for empty/nil.
+*/
+func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []dbus.ObjectPath, lockedItems []dbus.ObjectPath, err error) {
+
+	err = s.Dbus.Call(
+		DbusServiceSearchItems, 0, attributes,
+	).Store(&unlockedItems, &lockedItems)
+
+	return
+}
+
+/*
+	SetAlias sets an alias for an existing Collection.
+	To remove an alias, set objectPath to dbus.ObjectPath("/").
+*/
+func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error) {
+
+	var c *dbus.Call
+
+	c = s.Dbus.Call(
+		DbusServiceSetAlias, 0, alias, objectPath,
+	)
+
+	_ = c
 
 	return
 }

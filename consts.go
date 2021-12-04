@@ -21,6 +21,7 @@ const (
 	/*
 		DbusServiceChangeLock has some references in the SecretService Dbus API but
 		it seems to be obsolete - undocumented, at the least.
+		So we don't implement it.
 	*/
 	// DbusServiceChangeLock string = DbusInterfaceService + ".ChangeLock"
 
@@ -33,7 +34,7 @@ const (
 	// DbusServiceLock is used by Service.Lock.
 	DbusServiceLock string = DbusInterfaceService + ".Lock"
 
-	// DbusServiceLockService is [FUNCTION UNKNOWN/UNDOCUMENTED; TODO.]
+	// DbusServiceLockService is [FUNCTION UNKNOWN/UNDOCUMENTED; TODO? NOT IMPLEMENTED.]
 	DbusServiceLockService string = DbusInterfaceService + ".LockService"
 
 	// DbusServiceOpenSession is used by Service.Open.
@@ -48,12 +49,12 @@ const (
 	// DbusServiceSetAlias is used by Service.SetAlias to set an alias for a Collection.
 	DbusServiceSetAlias string = DbusInterfaceService + ".SetAlias"
 
-	// DbusServiceUnlock is used to unlock a Service.
+	// DbusServiceUnlock is used by Service.Unlock.
 	DbusServiceUnlock string = DbusInterfaceService + ".Unlock"
 
 	// Properties
 
-	// DbusServiceCollections is used to get a Dbus array of Collection items.
+	// DbusServiceCollections is used to get a Dbus array of Collection items (Service.Collections).
 	DbusServiceCollections string = DbusInterfaceService + ".Collections"
 )
 
