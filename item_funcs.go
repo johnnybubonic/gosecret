@@ -4,12 +4,22 @@ import (
 	`github.com/godbus/dbus`
 )
 
-// NewItem returns a pointer to a new Item based on a Dbus connection and a Dbus path.
-func NewItem(conn *dbus.Conn, path dbus.ObjectPath) (item *Item) {
+// NewItem returns a pointer to an Item based on Collection and a Dbus path.
+func NewItem(collection *Collection, path dbus.ObjectPath) (item *Item, err error) {
+
+	if collection == nil {
+		err = ErrNoDbusConn
+	}
+
+	if _, err = validConnPath(collection.Conn, path); err != nil {
+		return
+	}
 
 	item = &Item{
-		Conn: conn,
-		Dbus: conn.Object(DbusService, path),
+		&DbusObject{
+			Conn: collection.Conn,
+			Dbus: collection.Conn.Object(DbusService, path),
+		},
 	}
 
 	return
@@ -51,7 +61,7 @@ func (i *Item) GetSecret(session *Session) (secret *Secret, err error) {
 
 	if err = i.Dbus.Call(
 		"org.freedesktop.Secret.Item.GetSecret", 0, session.Path(),
-		).Store(&secret); err != nil {
+	).Store(&secret); err != nil {
 		return
 	}
 

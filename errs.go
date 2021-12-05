@@ -14,6 +14,10 @@ var (
 	ErrNoDbusConn error = errors.New("no valid dbus connection")
 	// ErrMissingPaths gets triggered if one or more Dbus object paths are expected but non/not enough are received.
 	ErrMissingPaths error = errors.New("one or more Dbus object paths were expected but an insufficient amount were received")
+	// ErrMissingAttrs gets triggered if attributes were expected but not passed.
+	ErrMissingAttrs error = errors.New("attributes must not be empty/nil")
+	// ErrDoesNotExist gets triggered if a Collection, Item, etc. is attempted to be fetched but none exists via the specified identifier.
+	ErrDoesNotExist error = errors.New("the object under that name/label/alias does not exist")
 )
 
 /*

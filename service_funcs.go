@@ -32,7 +32,7 @@ func (s *Service) Close() (err error) {
 }
 
 // Collections returns a slice of Collection items accessible to this Service.
-func (s *Service) Collections() (collections []Collection, err error) {
+func (s *Service) Collections() (collections []*Collection, err error) {
 
 	var paths []dbus.ObjectPath
 	var variant dbus.Variant
@@ -45,15 +45,16 @@ func (s *Service) Collections() (collections []Collection, err error) {
 
 	paths = variant.Value().([]dbus.ObjectPath)
 
-	collections = make([]Collection, len(paths))
+	collections = make([]*Collection, len(paths))
 
 	for idx, path := range paths {
-		if coll, err = NewCollection(s.Conn, path); err != nil {
+		if coll, err = NewCollection(s, path); err != nil {
 			// return
 			errs = append(errs, err)
 			err = nil
+			continue
 		}
-		collections[idx] = *coll
+		collections[idx] = coll
 	}
 	err = NewErrors(err)
 
@@ -91,7 +92,7 @@ func (s *Service) CreateAliasedCollection(label, alias string) (collection *Coll
 		path = variant.Value().(dbus.ObjectPath)
 	}
 
-	collection, err = NewCollection(s.Conn, path)
+	collection, err = NewCollection(s, path)
 
 	return
 }
@@ -108,15 +109,70 @@ func (s *Service) CreateCollection(label string) (collection *Collection, err er
 }
 
 /*
-	GetAlias allows one to fetch a Collection dbus.ObjectPath based on an alias name.
-	If the alias does not exist, objectPath will be dbus.ObjectPath("/").
-	TODO: return a Collection instead of a dbus.ObjectPath.
+	GetAlias allows one to fetch a Collection based on an alias name.
+	An ErrDoesNotExist will be raised if the alias does not exist.
+	You will almost assuredly want to use Service.GetCollection instead; it works for both alias names and real names.
 */
-func (s *Service) GetAlias(alias string) (objectPath dbus.ObjectPath, err error) {
+func (s *Service) GetAlias(alias string) (collection *Collection, err error) {
+
+	var objectPath dbus.ObjectPath
 
 	err = s.Dbus.Call(
 		DbusServiceReadAlias, 0, alias,
 	).Store(&objectPath)
+
+	/*
+		TODO: Confirm that a nonexistent alias will NOT cause an error to return.
+			  If it does, alter the below logic.
+	*/
+	if err != nil {
+		return
+	}
+
+	// If the alias does not exist, objectPath will be dbus.ObjectPath("/").
+	if objectPath == dbus.ObjectPath("/") {
+		err = ErrDoesNotExist
+		return
+	}
+
+	if collection, err = NewCollection(s, objectPath); err != nil {
+		return
+	}
+
+	return
+}
+
+/*
+	GetCollection returns a single Collection based on the name (name can also be an alias).
+	It's a helper function that avoids needing to make multiple calls in user code.
+*/
+func (s *Service) GetCollection(name string) (c *Collection, err error) {
+
+	var colls []*Collection
+
+	// First check for an alias.
+	if c, err = s.GetAlias(name); err != nil && err != ErrDoesNotExist{
+		return
+	}
+	if c != nil {
+		return
+	} else {
+		c = nil
+	}
+
+	// We didn't get it by alias, so let's try by name...
+	if colls, err = s.Collections(); err != nil {
+		return
+	}
+	for _, i := range colls {
+		if i.name == name {
+			c = i
+			return
+		}
+	}
+
+	// Couldn't find it by the given name.
+	err = ErrDoesNotExist
 
 	return
 }
@@ -217,9 +273,13 @@ func (s *Service) Open() (session *Session, output dbus.Variant, err error) {
 /*
 	SearchItems searches all Collection objects and returns all matches based on the map of attributes.
 	TODO: return arrays of Items instead of dbus.ObjectPaths.
-	TODO: check attributes for empty/nil.
 */
 func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []dbus.ObjectPath, lockedItems []dbus.ObjectPath, err error) {
+
+	if attributes == nil || len(attributes) == 0 {
+		err = ErrMissingAttrs
+		return
+	}
 
 	err = s.Dbus.Call(
 		DbusServiceSearchItems, 0, attributes,

@@ -87,6 +87,10 @@ type Collection struct {
 	*DbusObject
 	// lastModified is unexported because it's important that API users don't change it; it's used by Collection.Modified.
 	lastModified time.Time
+	// lastModifiedSet is unexported; it's only used to determine if this is a first-initialization of the modification time or not.
+	lastModifiedSet bool
+	// name is used for the Collection's name/label so the Dnus path doesn't need to be parsed all the time.
+	name string
 }
 
 /*

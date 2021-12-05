@@ -157,6 +157,8 @@ const (
 	DbusPath string = "/org/freedesktop/secrets"
 	// DbusPromptPrefix is the path used for prompts comparison.
 	DbusPromptPrefix string = DbusPath + "/prompt/"
+	// DbusNewCollectionPath is used to create a new Collection.
+	DbusNewCollectionPath string = DbusPath + "/collection/"
 )
 
 // FLAGS

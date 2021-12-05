@@ -4,6 +4,8 @@ import (
 	"github.com/godbus/dbus"
 )
 
+// I'm still not 100% certain what Sessions are used for?
+
 /*
 	NewSession returns a pointer to a new Session based on a Service and a dbus.ObjectPath.
 	If path is empty (""), the default
