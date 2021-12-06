@@ -1,5 +1,7 @@
 package gosecret
 
+// This currently is not used.
+
 /*
 	TranslateError translates a SecretServiceErrEnum into a SecretServiceError.
 	If a matching error was found, ok will be true and err will be the matching SecretServiceError.
@@ -20,6 +22,7 @@ func TranslateError(ssErr SecretServiceErrEnum) (ok bool, err error) {
 	return
 }
 
+// Error returns the string format of the error; this is necessary to be considered a valid error interface.
 func (e SecretServiceError) Error() (errStr string) {
 
 	errStr = e.ErrDesc

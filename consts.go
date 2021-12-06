@@ -1,11 +1,23 @@
 package gosecret
 
+// Constants for use with gosecret.
+const (
+	/*
+		ExplicitAttrEmptyValue is the constant used in Item.ModifyAttributes to explicitly set a value as empty.
+		Between the surrounding with %'s, the weird name that includes "gosecret", and the UUID4...
+		I am fairly confident this is unique enough.
+	*/
+	ExplicitAttrEmptyValue string = "%EXPLICIT_GOSECRET_BLANK_VALUE_8A4E3D7D-F30E-4754-8C56-9C172D1400F6%"
+)
+
 // Libsecret/SecretService Dbus interfaces.
 const (
 	// DbusService is the Dbus service bus identifier.
 	DbusService string = "org.freedesktop.secrets"
 	// DbusServiceBase is the base identifier used by interfaces.
 	DbusServiceBase string = "org.freedesktop.Secret"
+	// DbusPrompterInterface is an interface for issuing a Prompt. Yes, it should be doubled up like that.
+	DbusPrompterInterface string = DbusServiceBase + ".Prompt.Prompt"
 )
 
 // Service interface.
@@ -37,10 +49,10 @@ const (
 	// DbusServiceLockService is [FUNCTION UNKNOWN/UNDOCUMENTED; TODO? NOT IMPLEMENTED.]
 	DbusServiceLockService string = DbusInterfaceService + ".LockService"
 
-	// DbusServiceOpenSession is used by Service.Open.
+	// DbusServiceOpenSession is used by Service.OpenSession.
 	DbusServiceOpenSession string = DbusInterfaceService + ".OpenSession"
 
-	// DbusServiceReadAlias is used by Service.GetAlias to return a Collection based on its aliased name.
+	// DbusServiceReadAlias is used by Service.ReadAlias to return a Collection based on its aliased name.
 	DbusServiceReadAlias string = DbusInterfaceService + ".ReadAlias"
 
 	// DbusServiceSearchItems is used by Service.SearchItems to get arrays of locked and unlocked Item objects.
@@ -135,13 +147,13 @@ const (
 	// DbusItemLocked is a Dbus boolean for Item.Locked.
 	DbusItemLocked string = DbusInterfaceItem + ".Locked"
 
-	// DbusItemAttributes contains attributes (metadata, schema, etc.) for Item.Attributes.
+	// DbusItemAttributes contains attributes (metadata, schema, etc.) for Item.Attrs.
 	DbusItemAttributes string = DbusInterfaceItem + ".Attributes"
 
 	// DbusItemLabel is the name (label) for Item.Label.
 	DbusItemLabel string = DbusInterfaceItem + ".Label"
 
-	// DbusItemType is the type of an Item (Item.Type).
+	// DbusItemType is the type of Item (Item.ItemType).
 	DbusItemType string = DbusInterfaceItem + ".Type"
 
 	// DbusItemCreated is the time an Item was created (in a UNIX Epoch uint64) for Item.Created.
@@ -159,6 +171,8 @@ const (
 	DbusPromptPrefix string = DbusPath + "/prompt/"
 	// DbusNewCollectionPath is used to create a new Collection.
 	DbusNewCollectionPath string = DbusPath + "/collection/"
+	// DbusNewSessionPath is used to create a new Session.
+	DbusNewSessionPath string = DbusPath + "/session/"
 )
 
 // FLAGS
@@ -166,7 +180,7 @@ const (
 
 // SERVICE
 
-// ServiceInitFlag is a flag for Service.Open.
+// ServiceInitFlag is a flag for Service.OpenSession.
 type ServiceInitFlag int
 
 const (

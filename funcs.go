@@ -3,7 +3,7 @@ package gosecret
 import (
 	`strings`
 
-	`github.com/godbus/dbus`
+	`github.com/godbus/dbus/v5`
 )
 
 // isPrompt returns a boolean that is true if path is/requires a prompt(ed path) and false if it is/does not.

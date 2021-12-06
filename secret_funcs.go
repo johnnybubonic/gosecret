@@ -4,7 +4,7 @@ package gosecret
 func NewSecret(session *Session, params []byte, value []byte, contentType string) (secret *Secret) {
 
 	secret = &Secret{
-		Session:     session.Path(),
+		Session:     session.Dbus.Path(),
 		Parameters:  params,
 		Value:       value,
 		ContentType: contentType,

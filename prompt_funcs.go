@@ -1,25 +1,18 @@
 package gosecret
 
 import (
-	`github.com/godbus/dbus`
+	`github.com/godbus/dbus/v5`
 )
 
 // NewPrompt returns a pointer to a new Prompt based on a Dbus connection and a Dbus path.
 func NewPrompt(conn *dbus.Conn, path dbus.ObjectPath) (prompt *Prompt) {
 
 	prompt = &Prompt{
-		Conn: conn,
-		Dbus: conn.Object(DbusService, path),
+		DbusObject: &DbusObject{
+			Conn: conn,
+			Dbus: conn.Object(DbusService, path),
+		},
 	}
-
-	return
-}
-
-// Path returns the path of the underlying Dbus connection.
-func (p Prompt) Path() (path dbus.ObjectPath) {
-
-	// Remove this method in V1. It's bloat since we now have an exported Dbus.
-	path = p.Dbus.Path()
 
 	return
 }
@@ -37,12 +30,14 @@ func (p *Prompt) Prompt() (promptValue *dbus.Variant, err error) {
 	p.Conn.Signal(c)
 	defer p.Conn.RemoveSignal(c)
 
-	if err = p.Dbus.Call("org.freedesktop.Secret.Prompt.Prompt", 0, "").Store(); err != nil {
+	if err = p.Dbus.Call(
+		DbusPrompterInterface, 0, "", // TODO: This last argument, the string, is for "window ID". I'm unclear what for.
+	).Store(); err != nil {
 		return
 	}
 
 	for {
-		if result = <-c; result.Path == p.Path() {
+		if result = <-c; result.Path == p.Dbus.Path() {
 			*promptValue = result.Body[1].(dbus.Variant)
 			return
 		}

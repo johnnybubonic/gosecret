@@ -3,8 +3,10 @@ package gosecret
 import (
 	"time"
 
-	"github.com/godbus/dbus"
+	"github.com/godbus/dbus/v5"
 )
+
+// TODO: add label fields to Collection and Item, make their respective Label methods update the field.
 
 /*
 	MultiError is a type of error.Error that can contain multiple error.Errors. Confused? Don't worry about it.
@@ -65,6 +67,7 @@ type Prompt struct {
 */
 type Service struct {
 	*DbusObject
+	// Session is a default Session initiated automatically.
 	Session *Session `json:"-"`
 }
 
@@ -75,6 +78,8 @@ type Service struct {
 */
 type Session struct {
 	*DbusObject
+	// collection tracks the Service this Session was created from.
+	service *Service
 }
 
 /*
@@ -89,8 +94,10 @@ type Collection struct {
 	lastModified time.Time
 	// lastModifiedSet is unexported; it's only used to determine if this is a first-initialization of the modification time or not.
 	lastModifiedSet bool
-	// name is used for the Collection's name/label so the Dnus path doesn't need to be parsed all the time.
+	// name is used for the Collection's name/label so the Dbus path doesn't need to be parsed all the time.
 	name string
+	// service tracks the Service this Collection was created from.
+	service *Service
 }
 
 /*
@@ -100,6 +107,30 @@ type Collection struct {
 */
 type Item struct {
 	*DbusObject
+	/*
+		Attrs are the attributes to assign to this Item.
+		They should be considered non-secret; they're primarily used to *look up* an Item.
+		*Do NOT put secret/sensitive data in an Item's Attrs!*
+	*/
+	Attrs map[string]string `json:"attributes"`
+	// Secret is the corresponding Secret object.
+	Secret *Secret `json:"secret"`
+	/*
+		ItemType is the type of this Item as a Dbus interface name.
+		e.g. org.gnome.keyring.NetworkPassword, org.freedesktop.Secret.Generic, org.remmina.Password, etc.
+	*/
+	ItemType string `json:"dbus_type"`
+	// lastModified is unexported because it's important that API users don't change it; it's used by Collection.Modified.
+	lastModified time.Time
+	// lastModifiedSet is unexported; it's only used to determine if this is a first-initialization of the modification time or not.
+	lastModifiedSet bool
+	/*
+		idx is the index identifier of the Item.
+		It SHOULD correlate to indices in Collection.Items, but don't rely on this.
+	*/
+	idx int
+	// collection tracks the Collection this Item is in.
+	collection *Collection
 }
 
 /*
@@ -109,12 +140,22 @@ type Item struct {
 	https://specifications.freedesktop.org/secret-service/latest/ch14.html#type-Secret
 */
 type Secret struct {
-	// Session is a Dbus object path for the associated Session.
-	Session dbus.ObjectPath `json:"-"`
-	// Parameters are "algorithm dependent parameters for secret value encoding" - likely this will just be an empty byteslice.
+	// Session is a Dbus object path for the associated Session (the actual Session is stored in an unexported field).
+	Session dbus.ObjectPath `json:"session_path"`
+	/*
+		Parameters are "algorithm dependent parameters for secret value encoding" - likely this will just be an empty byteslice.
+		Refer to Session for more information.
+	*/
 	Parameters []byte `json:"params"`
 	// Value is the secret's content in []byte format.
-	Value []byte `json:"value"`
+	Value SecretValue `json:"value"`
 	// ContentType is the MIME type of Value.
 	ContentType string `json:"content_type"`
+	// item is the Item this Secret belongs to.
+	item *Item
+	// session is the Session used to decode/decrypt this Secret.
+	session *Session
 }
+
+// SecretValue is a custom type that handles JSON encoding/decoding a little more easily.
+type SecretValue []byte

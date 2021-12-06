@@ -1,8 +1,15 @@
 package gosecret
 
 import (
-	"github.com/godbus/dbus"
+	`errors`
+	`fmt`
+	`path/filepath`
+	`strings`
+
+	"github.com/godbus/dbus/v5"
 )
+
+// TODO: Lock method (DbusServiceLockService)?
 
 // NewService returns a pointer to a new Service connection.
 func NewService() (service *Service, err error) {
@@ -14,7 +21,7 @@ func NewService() (service *Service, err error) {
 	}
 	svc.Dbus = service.Conn.Object(DbusService, dbus.ObjectPath(DbusPath))
 
-	if svc.Session, _, err = svc.Open(); err != nil {
+	if svc.Session, err = svc.GetSession(); err != nil {
 		return
 	}
 
@@ -109,40 +116,6 @@ func (s *Service) CreateCollection(label string) (collection *Collection, err er
 }
 
 /*
-	GetAlias allows one to fetch a Collection based on an alias name.
-	An ErrDoesNotExist will be raised if the alias does not exist.
-	You will almost assuredly want to use Service.GetCollection instead; it works for both alias names and real names.
-*/
-func (s *Service) GetAlias(alias string) (collection *Collection, err error) {
-
-	var objectPath dbus.ObjectPath
-
-	err = s.Dbus.Call(
-		DbusServiceReadAlias, 0, alias,
-	).Store(&objectPath)
-
-	/*
-		TODO: Confirm that a nonexistent alias will NOT cause an error to return.
-			  If it does, alter the below logic.
-	*/
-	if err != nil {
-		return
-	}
-
-	// If the alias does not exist, objectPath will be dbus.ObjectPath("/").
-	if objectPath == dbus.ObjectPath("/") {
-		err = ErrDoesNotExist
-		return
-	}
-
-	if collection, err = NewCollection(s, objectPath); err != nil {
-		return
-	}
-
-	return
-}
-
-/*
 	GetCollection returns a single Collection based on the name (name can also be an alias).
 	It's a helper function that avoids needing to make multiple calls in user code.
 */
@@ -151,7 +124,7 @@ func (s *Service) GetCollection(name string) (c *Collection, err error) {
 	var colls []*Collection
 
 	// First check for an alias.
-	if c, err = s.GetAlias(name); err != nil && err != ErrDoesNotExist{
+	if c, err = s.ReadAlias(name); err != nil && err != ErrDoesNotExist {
 		return
 	}
 	if c != nil {
@@ -192,21 +165,22 @@ func (s *Service) GetSecrets(itemPaths ...dbus.ObjectPath) (secrets map[dbus.Obj
 	secrets = make(map[dbus.ObjectPath]*Secret, len(itemPaths))
 
 	// TODO: trigger a Service.Unlock for any locked items?
-	/*
-		// TODO: make any errs in here a MultiError instead.
-		for _, secretPath := range itemPaths {
-			if err = s.Dbus.Call(
-				DbusServiceGetSecrets, 0, secretPath,
-			).Store(&result); err != nil {
-				return
-			}
-		}
-	*/
 	if err = s.Dbus.Call(
 		DbusServiceGetSecrets, 0, itemPaths,
 	).Store(&secrets); err != nil {
 		return
 	}
+
+	return
+}
+
+/*
+	GetSession returns a single Session.
+	It's a helper function that wraps Service.OpenSession.
+*/
+func (s *Service) GetSession() (ssn *Session, err error) {
+
+	ssn, _, err = s.OpenSession("", "")
 
 	return
 }
@@ -218,6 +192,8 @@ func (s *Service) GetSecrets(itemPaths ...dbus.ObjectPath) (secrets map[dbus.Obj
 */
 func (s *Service) Lock(objectPaths ...dbus.ObjectPath) (err error) {
 
+	var errs []error = make([]error, 0)
+	// We only use these as destinations.
 	var locked []dbus.ObjectPath
 	var prompt *Prompt
 	var resultPath dbus.ObjectPath
@@ -226,12 +202,13 @@ func (s *Service) Lock(objectPaths ...dbus.ObjectPath) (err error) {
 		objectPaths = []dbus.ObjectPath{s.Dbus.Path()}
 	}
 
-	// TODO: make any errs in here a MultiError instead.
 	for _, p := range objectPaths {
 		if err = s.Dbus.Call(
 			DbusServiceLock, 0, p,
 		).Store(&locked, &resultPath); err != nil {
-			return
+			errs = append(errs, err)
+			err = nil
+			continue
 		}
 
 		if isPrompt(resultPath) {
@@ -239,28 +216,44 @@ func (s *Service) Lock(objectPaths ...dbus.ObjectPath) (err error) {
 			prompt = NewPrompt(s.Conn, resultPath)
 
 			if _, err = prompt.Prompt(); err != nil {
-				return
+				errs = append(errs, err)
+				err = nil
+				continue
 			}
 		}
+	}
+
+	if errs != nil && len(errs) > 0 {
+		err = NewErrors(errs...)
 	}
 
 	return
 }
 
 /*
-	Open returns a pointer to a Session from the Service.
+	OpenSession returns a pointer to a Session from the Service.
 	It's a convenience function around NewSession.
 */
-func (s *Service) Open() (session *Session, output dbus.Variant, err error) {
+func (s *Service) OpenSession(algo, input string) (session *Session, output dbus.Variant, err error) {
 
 	var path dbus.ObjectPath
+	var algoVariant dbus.Variant
+	var inputVariant dbus.Variant
+
+	if strings.TrimSpace(algo) == "" {
+		algoVariant = dbus.MakeVariant("plain")
+	} else {
+		algoVariant = dbus.MakeVariant(algo)
+	}
+
+	inputVariant = dbus.MakeVariant(input)
 
 	// In *theory*, SecretService supports multiple "algorithms" for encryption in-transit, but I don't think it's implemented (yet)?
 	// TODO: confirm this.
 	// Possible flags are dbus.Flags consts: https://pkg.go.dev/github.com/godbus/dbus#Flags
 	// Oddly, there is no "None" flag. So it's explicitly specified as a null byte.
 	if err = s.Dbus.Call(
-		DbusServiceOpenSession, 0, "plain", dbus.MakeVariant(""),
+		DbusServiceOpenSession, 0, algoVariant, inputVariant,
 	).Store(&output, &path); err != nil {
 		return
 	}
@@ -271,10 +264,52 @@ func (s *Service) Open() (session *Session, output dbus.Variant, err error) {
 }
 
 /*
-	SearchItems searches all Collection objects and returns all matches based on the map of attributes.
-	TODO: return arrays of Items instead of dbus.ObjectPaths.
+	ReadAlias allows one to fetch a Collection based on an alias name.
+	An ErrDoesNotExist will be raised if the alias does not exist.
+	You will almost assuredly want to use Service.GetCollection instead; it works for both alias names and real names.
 */
-func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []dbus.ObjectPath, lockedItems []dbus.ObjectPath, err error) {
+func (s *Service) ReadAlias(alias string) (collection *Collection, err error) {
+
+	var objectPath dbus.ObjectPath
+
+	err = s.Dbus.Call(
+		DbusServiceReadAlias, 0, alias,
+	).Store(&objectPath)
+
+	/*
+		TODO: Confirm that a nonexistent alias will NOT cause an error to return.
+			  If it does, alter the below logic.
+	*/
+	if err != nil {
+		return
+	}
+
+	// If the alias does not exist, objectPath will be dbus.ObjectPath("/").
+	if objectPath == dbus.ObjectPath("/") {
+		err = ErrDoesNotExist
+		return
+	}
+
+	if collection, err = NewCollection(s, objectPath); err != nil {
+		return
+	}
+
+	return
+}
+
+/*
+	SearchItems searches all Collection objects and returns all matches based on the map of attributes.
+*/
+func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*Item, lockedItems []*Item, err error) {
+
+	var locked []dbus.ObjectPath
+	var unlocked []dbus.ObjectPath
+	var collectionObjs []*Collection
+	var collections map[dbus.ObjectPath]*Collection = make(map[dbus.ObjectPath]*Collection, 0)
+	var ok bool
+	var c *Collection
+	var cPath dbus.ObjectPath
+	var errs []error = make([]error, 0)
 
 	if attributes == nil || len(attributes) == 0 {
 		err = ErrMissingAttrs
@@ -283,7 +318,66 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []dbu
 
 	err = s.Dbus.Call(
 		DbusServiceSearchItems, 0, attributes,
-	).Store(&unlockedItems, &lockedItems)
+	).Store(&unlocked, &locked)
+
+	lockedItems = make([]*Item, len(locked))
+	unlockedItems = make([]*Item, len(unlocked))
+
+	if collectionObjs, err = s.Collections(); err != nil {
+		return
+	}
+
+	for _, c = range collectionObjs {
+		if _, ok = collections[c.Dbus.Path()]; !ok {
+			collections[c.Dbus.Path()] = c
+		}
+	}
+
+	// Locked items
+	for idx, i := range locked {
+
+		cPath = dbus.ObjectPath(filepath.Dir(string(i)))
+
+		if c, ok = collections[cPath]; !ok {
+			errs = append(errs, errors.New(fmt.Sprintf(
+				"could not find matching Collection for locked item %v", string(i),
+			)))
+			continue
+		}
+
+		if lockedItems[idx], err = NewItem(c, i); err != nil {
+			errs = append(errs, errors.New(fmt.Sprintf(
+				"could not create Item for locked item %v", string(i),
+			)))
+			err = nil
+			continue
+		}
+	}
+
+	// Unlocked items
+	for idx, i := range unlocked {
+
+		cPath = dbus.ObjectPath(filepath.Dir(string(i)))
+
+		if c, ok = collections[cPath]; !ok {
+			errs = append(errs, errors.New(fmt.Sprintf(
+				"could not find matching Collection for unlocked item %v", string(i),
+			)))
+			continue
+		}
+
+		if unlockedItems[idx], err = NewItem(c, i); err != nil {
+			errs = append(errs, errors.New(fmt.Sprintf(
+				"could not create Item for unlocked item %v", string(i),
+			)))
+			err = nil
+			continue
+		}
+	}
+
+	if errs != nil && len(errs) > 0 {
+		err = NewErrors(errs...)
+	}
 
 	return
 }
@@ -312,6 +406,7 @@ func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error)
 */
 func (s *Service) Unlock(objectPaths ...dbus.ObjectPath) (err error) {
 
+	var errs []error = make([]error, 0)
 	var unlocked []dbus.ObjectPath
 	var prompt *Prompt
 	var resultPath dbus.ObjectPath
@@ -320,12 +415,13 @@ func (s *Service) Unlock(objectPaths ...dbus.ObjectPath) (err error) {
 		objectPaths = []dbus.ObjectPath{s.Dbus.Path()}
 	}
 
-	// TODO: make any errs in here a MultiError instead.
 	for _, p := range objectPaths {
 		if err = s.Dbus.Call(
 			DbusServiceUnlock, 0, p,
 		).Store(&unlocked, &resultPath); err != nil {
-			return
+			errs = append(errs, err)
+			err = nil
+			continue
 		}
 
 		if isPrompt(resultPath) {
@@ -333,9 +429,15 @@ func (s *Service) Unlock(objectPaths ...dbus.ObjectPath) (err error) {
 			prompt = NewPrompt(s.Conn, resultPath)
 
 			if _, err = prompt.Prompt(); err != nil {
-				return
+				errs = append(errs, err)
+				err = nil
+				continue
 			}
 		}
+	}
+
+	if errs != nil && len(errs) > 0 {
+		err = NewErrors(errs...)
 	}
 
 	return

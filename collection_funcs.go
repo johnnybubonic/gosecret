@@ -4,8 +4,10 @@ import (
 	`strings`
 	"time"
 
-	`github.com/godbus/dbus`
+	`github.com/godbus/dbus/v5`
 )
+
+// TODO: add method Relabel
 
 /*
 	NewCollection returns a pointer to a Collection based on a Service and a Dbus path.
@@ -28,10 +30,11 @@ func NewCollection(service *Service, path dbus.ObjectPath) (coll *Collection, er
 			Conn: service.Conn,
 			Dbus: service.Conn.Object(DbusService, path),
 		},
+		service: service,
 		// lastModified: time.Now(),
 	}
 
-	splitPath = strings.Split(string(coll.Dbus.Path()), "")
+	splitPath = strings.Split(string(coll.Dbus.Path()), "/")
 
 	coll.name = splitPath[len(splitPath)-1]
 
@@ -58,7 +61,6 @@ func (c *Collection) Items() (items []*Item, err error) {
 
 	for idx, path := range paths {
 		if item, err = NewItem(c, path); err != nil {
-			// return
 			errs = append(errs, err)
 			err = nil
 			continue
@@ -120,22 +122,20 @@ func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 	return
 }
 
-// CreateItem returns a pointer to an Item based on a label, a Secret, and whether any existing secret with the same label should be replaced or not.
-func (c *Collection) CreateItem(label string, secret *Secret, replace bool) (item *Item, err error) {
+// CreateItem returns a pointer to an Item based on a label, some attributes, a Secret, and whether any existing secret with the same label should be replaced or not.
+func (c *Collection) CreateItem(label string, attrs map[string]string, secret *Secret, replace bool) (item *Item, err error) {
 
 	var prompt *Prompt
 	var path dbus.ObjectPath
 	var promptPath dbus.ObjectPath
 	var variant *dbus.Variant
 	var props map[string]dbus.Variant = make(map[string]dbus.Variant)
-	var attrs map[string]string = make(map[string]string)
 
-	attrs["profile"] = label
-	props["org.freedesktop.Secret.Item.Label"] = dbus.MakeVariant(label)
-	props["org.freedesktop.Secret.Item.Attributes"] = dbus.MakeVariant(attrs)
+	props[DbusItemLabel] = dbus.MakeVariant(label)
+	props[DbusItemAttributes] = dbus.MakeVariant(attrs)
 
 	if err = c.Dbus.Call(
-		"org.freedesktop.Secret.Collection.CreateItem", 0, props, secret, replace,
+		DbusCollectionCreateItem, 0, props, secret, replace,
 	).Store(&path, &promptPath); err != nil {
 		return
 	}
@@ -180,6 +180,10 @@ func (c *Collection) Label() (label string, err error) {
 	}
 
 	label = variant.Value().(string)
+
+	if label != c.name {
+		c.name = label
+	}
 
 	return
 }

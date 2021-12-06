@@ -1,0 +1,10 @@
+- TEST CASES
+-- https://pkg.go.dev/testing
+-- https://go.dev/doc/tutorial/add-a-test
+-- https://gobyexample.com/testing
+-- https://blog.alexellis.io/golang-writing-unit-tests/
+- Example usage
+- Merge master into V1
+-- and tag release (v1.0.0)
+- Merge doc.go and README.adoc to V0
+-- and tag release (v0.1.3)
