@@ -18,7 +18,7 @@ func NewSession(service *Service, path dbus.ObjectPath) (session *Session) {
 		},
 		service: service,
 	}
-	session.Dbus = session.Conn.Object(DbusInterfaceSession, path)
+	ssn.Dbus = ssn.Conn.Object(DbusInterfaceSession, path)
 
 	session = &ssn
 

@@ -3,6 +3,7 @@
 -- https://go.dev/doc/tutorial/add-a-test
 -- https://gobyexample.com/testing
 -- https://blog.alexellis.io/golang-writing-unit-tests/
+- Benchmarking?
 - Example usage
 - Merge master into V1
 -- and tag release (v1.0.0)

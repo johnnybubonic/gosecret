@@ -6,8 +6,6 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
-// TODO: add label fields to Collection and Item, make their respective Label methods update the field.
-
 /*
 	MultiError is a type of error.Error that can contain multiple error.Errors. Confused? Don't worry about it.
 */
@@ -107,12 +105,6 @@ type Collection struct {
 */
 type Item struct {
 	*DbusObject
-	/*
-		Attrs are the attributes to assign to this Item.
-		They should be considered non-secret; they're primarily used to *look up* an Item.
-		*Do NOT put secret/sensitive data in an Item's Attrs!*
-	*/
-	Attrs map[string]string `json:"attributes"`
 	// Secret is the corresponding Secret object.
 	Secret *Secret `json:"secret"`
 	/*

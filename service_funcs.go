@@ -9,17 +9,21 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
-// TODO: Lock method (DbusServiceLockService)?
-
 // NewService returns a pointer to a new Service connection.
 func NewService() (service *Service, err error) {
 
-	var svc Service = Service{}
+	var svc Service = Service{
+		DbusObject: &DbusObject{
+			Conn: nil,
+			Dbus: nil,
+		},
+		Session: nil,
+	}
 
 	if svc.Conn, err = dbus.SessionBus(); err != nil {
 		return
 	}
-	svc.Dbus = service.Conn.Object(DbusService, dbus.ObjectPath(DbusPath))
+	svc.Dbus = svc.Conn.Object(DbusService, dbus.ObjectPath(DbusPath))
 
 	if svc.Session, err = svc.GetSession(); err != nil {
 		return
@@ -237,13 +241,10 @@ func (s *Service) Lock(objectPaths ...dbus.ObjectPath) (err error) {
 func (s *Service) OpenSession(algo, input string) (session *Session, output dbus.Variant, err error) {
 
 	var path dbus.ObjectPath
-	var algoVariant dbus.Variant
 	var inputVariant dbus.Variant
 
 	if strings.TrimSpace(algo) == "" {
-		algoVariant = dbus.MakeVariant("plain")
-	} else {
-		algoVariant = dbus.MakeVariant(algo)
+		algo = "plain"
 	}
 
 	inputVariant = dbus.MakeVariant(input)
@@ -253,7 +254,7 @@ func (s *Service) OpenSession(algo, input string) (session *Session, output dbus
 	// Possible flags are dbus.Flags consts: https://pkg.go.dev/github.com/godbus/dbus#Flags
 	// Oddly, there is no "None" flag. So it's explicitly specified as a null byte.
 	if err = s.Dbus.Call(
-		DbusServiceOpenSession, 0, algoVariant, inputVariant,
+		DbusServiceOpenSession, 0, algo, inputVariant,
 	).Store(&output, &path); err != nil {
 		return
 	}

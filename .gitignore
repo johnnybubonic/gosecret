@@ -27,6 +27,10 @@
 
 # Test binary, built with `go test -c`
 *.test
+# But DO include the actual tests.
+!_test.go
+!*_test.go
+!*_test/
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out

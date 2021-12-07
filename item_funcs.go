@@ -8,8 +8,6 @@ import (
 	`github.com/godbus/dbus/v5`
 )
 
-// TODO: add method Relabel
-
 // NewItem returns a pointer to an Item based on Collection and a Dbus path.
 func NewItem(collection *Collection, path dbus.ObjectPath) (item *Item, err error) {
 
@@ -46,7 +44,7 @@ func NewItem(collection *Collection, path dbus.ObjectPath) (item *Item, err erro
 	return
 }
 
-// Attributes updates the Item.Attrs from Dbus (and returns them).
+// Attributes returns the Item's attributes from Dbus.
 func (i *Item) Attributes() (attrs map[string]string, err error) {
 
 	var variant dbus.Variant
@@ -55,8 +53,7 @@ func (i *Item) Attributes() (attrs map[string]string, err error) {
 		return
 	}
 
-	i.Attrs = variant.Value().(map[string]string)
-	attrs = i.Attrs
+	attrs = variant.Value().(map[string]string)
 
 	return
 }
@@ -120,7 +117,7 @@ func (i *Item) Label() (label string, err error) {
 }
 
 /*
-	ModifyAttributes modifies the Item.Attrs, both in the object and in Dbus.
+	ModifyAttributes modifies the Item's attributes in Dbus.
 	This is similar to Item.ReplaceAttributes but will only modify the map's given keys so you do not need to provide
 	the entire attribute map.
 	If you wish to remove an attribute, use the value "" (empty string).
@@ -161,7 +158,19 @@ func (i *Item) ModifyAttributes(replaceAttrs map[string]string) (err error) {
 	return
 }
 
-// ReplaceAttributes replaces the Item.Attrs, both in the object and in Dbus.
+// Relabel modifies the Item's label in Dbus.
+func (i *Item) Relabel(newLabel string) (err error) {
+
+	var variant dbus.Variant = dbus.MakeVariant(newLabel)
+
+	if err = i.Dbus.SetProperty(DbusItemLabel, variant); err != nil {
+		return
+	}
+
+	return
+}
+
+// ReplaceAttributes replaces the Item's attributes in Dbus.
 func (i *Item) ReplaceAttributes(newAttrs map[string]string) (err error) {
 
 	var label string
@@ -177,8 +186,6 @@ func (i *Item) ReplaceAttributes(newAttrs map[string]string) (err error) {
 	if err = i.Dbus.SetProperty(DbusItemAttributes, props); err != nil {
 		return
 	}
-
-	i.Attrs = newAttrs
 
 	return
 }

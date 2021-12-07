@@ -47,7 +47,7 @@ const (
 	DbusServiceLock string = DbusInterfaceService + ".Lock"
 
 	// DbusServiceLockService is [FUNCTION UNKNOWN/UNDOCUMENTED; TODO? NOT IMPLEMENTED.]
-	DbusServiceLockService string = DbusInterfaceService + ".LockService"
+	// DbusServiceLockService string = DbusInterfaceService + ".LockService"
 
 	// DbusServiceOpenSession is used by Service.OpenSession.
 	DbusServiceOpenSession string = DbusInterfaceService + ".OpenSession"
@@ -147,7 +147,10 @@ const (
 	// DbusItemLocked is a Dbus boolean for Item.Locked.
 	DbusItemLocked string = DbusInterfaceItem + ".Locked"
 
-	// DbusItemAttributes contains attributes (metadata, schema, etc.) for Item.Attrs.
+	/*
+		DbusItemAttributes contains attributes (metadata, schema, etc.) for
+		Item.Attributes, Item.ReplaceAttributes, and Item.ModifyAttributes.
+	*/
 	DbusItemAttributes string = DbusInterfaceItem + ".Attributes"
 
 	// DbusItemLabel is the name (label) for Item.Label.

@@ -7,8 +7,6 @@ import (
 	`github.com/godbus/dbus/v5`
 )
 
-// TODO: add method Relabel
-
 /*
 	NewCollection returns a pointer to a Collection based on a Service and a Dbus path.
 	You will almost always want to use Service.GetCollection instead.
@@ -183,6 +181,18 @@ func (c *Collection) Label() (label string, err error) {
 
 	if label != c.name {
 		c.name = label
+	}
+
+	return
+}
+
+// Relabel modifies the Collection's label in Dbus.
+func (c *Collection) Relabel(newLabel string) (err error) {
+
+	var variant dbus.Variant = dbus.MakeVariant(newLabel)
+
+	if err = c.Dbus.SetProperty(DbusItemLabel, variant); err != nil {
+		return
 	}
 
 	return
