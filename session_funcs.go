@@ -10,7 +10,11 @@ import (
 	NewSession returns a pointer to a new Session based on a Service and a dbus.ObjectPath.
 	You will almost always want to use Service.GetSession or Service.OpenSession instead.
 */
-func NewSession(service *Service, path dbus.ObjectPath) (session *Session) {
+func NewSession(service *Service, path dbus.ObjectPath) (session *Session, err error) {
+
+	if _, err = validConnPath(service.Conn, path); err != nil {
+		return
+	}
 
 	var ssn Session = Session{
 		DbusObject: &DbusObject{

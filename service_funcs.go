@@ -1,10 +1,10 @@
 package gosecret
 
 import (
-	`errors`
-	`fmt`
-	`path/filepath`
-	`strings`
+	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -259,7 +259,7 @@ func (s *Service) OpenSession(algo, input string) (session *Session, output dbus
 		return
 	}
 
-	session = NewSession(s, path)
+	session, err = NewSession(s, path)
 
 	return
 }
@@ -395,7 +395,7 @@ func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error)
 		DbusServiceSetAlias, 0, alias, objectPath,
 	)
 
-	_ = c
+	err = c.Err
 
 	return
 }
