@@ -108,6 +108,7 @@ func TestService_CreateAliasedCollection(t *testing.T) {
 				collectionName.String(), collectionAlias.String(), err.Error(),
 			)
 		}
+		t.Logf("created collection '%v' at path '%v' successfully", collectionName.String(), string(collection.Dbus.Path()))
 	}
 
 	if err = svc.Close(); err != nil {
@@ -189,6 +190,8 @@ func TestService_Secrets(t *testing.T) {
 			t.Errorf("could not close Service.Session: %v", err.Error())
 		}
 		t.Fatalf("could not create collection '%v': %v", collectionName.String(), err.Error())
+	} else {
+		t.Logf("created collection '%v' at path '%v' successfully", collectionName.String(), string(collection.Dbus.Path()))
 	}
 
 	// Create a secret
@@ -280,6 +283,8 @@ func TestService_Locking(t *testing.T) {
 			t.Errorf("could not close Service.Session: %v", err.Error())
 		}
 		t.Errorf("could not create collection '%v': %v", collectionName.String(), err.Error())
+	} else {
+		t.Logf("created collection '%v' at path '%v' successfully", collectionName.String(), string(collection.Dbus.Path()))
 	}
 
 	if isLocked, err = collection.Locked(); err != nil {
@@ -326,5 +331,17 @@ func TestService_Locking(t *testing.T) {
 			"flipped lock state for collection '%v' (locked: %v) is not opposite of original lock state (locked: %v)",
 			collectionName.String(), stateChangeLock, isLocked,
 		)
+	}
+
+	// Delete the collection to clean up.
+	if err = collection.Delete(); err != nil {
+		t.Errorf(
+			"error when deleting collection '%v' when testing Service: %v",
+			collectionName.String(), err.Error(),
+		)
+	}
+
+	if err = svc.Close(); err != nil {
+		t.Errorf("could not close Service.Session: %v", err.Error())
 	}
 }

@@ -91,7 +91,11 @@ func (c *Collection) Delete() (err error) {
 	return
 }
 
-// SearchItems searches a Collection for a matching profile string.
+/*
+	SearchItems searches a Collection for a matching profile string.
+	It's mostly a carry-over from go-libsecret, and is here for convenience.
+	I promise it's not useful for any other implementation/storage of SecretService whatsoever.
+*/
 func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 
 	var paths []dbus.ObjectPath
