@@ -7,3 +7,7 @@ https://people.gnome.org/~stefw/libsecret-docs/index.html
 Quick reference URLs:
 
 Dbus paths: https://specifications.freedesktop.org/secret-service/latest/ch12.html
+Message types: https://dbus.freedesktop.org/doc/dbus-specification.html#type-system
+	Use this for reference for errors like:
+		Type of message, “(ao)”, does not match expected type “(aoo)”
+	See dbus_types subdir for Golang structs that can be used in the future to improve these error messages.

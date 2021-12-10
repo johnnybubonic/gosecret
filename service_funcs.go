@@ -95,7 +95,6 @@ func (s *Service) CreateAliasedCollection(label, alias string) (collection *Coll
 	if isPrompt(promptPath) {
 
 		prompt = NewPrompt(s.Conn, promptPath)
-
 		if variant, err = prompt.Prompt(); err != nil {
 			return
 		}
@@ -161,18 +160,36 @@ func (s *Service) GetCollection(name string) (c *Collection, err error) {
 */
 func (s *Service) GetSecrets(itemPaths ...dbus.ObjectPath) (secrets map[dbus.ObjectPath]*Secret, err error) {
 
+	/*
+		Results are in the form of a map with the value consisting of:
+		[]interface {}{
+			"/org/freedesktop/secrets/session/sNNN",  // 0, session path
+			[]uint8{},                                // 1, "params"
+			[]uint8{0x0},                             // 2, value
+			"text/plain",                             // 3, content type
+		}
+	*/
+	var results map[dbus.ObjectPath][]interface{}
+
 	if itemPaths == nil || len(itemPaths) == 0 {
 		err = ErrMissingPaths
 		return
 	}
 
 	secrets = make(map[dbus.ObjectPath]*Secret, len(itemPaths))
+	results = make(map[dbus.ObjectPath][]interface{}, len(itemPaths))
 
 	// TODO: trigger a Service.Unlock for any locked items?
 	if err = s.Dbus.Call(
-		DbusServiceGetSecrets, 0, itemPaths,
-	).Store(&secrets); err != nil {
+		DbusServiceGetSecrets, 0, itemPaths, s.Session.Dbus.Path(),
+	).Store(&results); err != nil {
 		return
+	}
+
+	for p, r := range results {
+		secrets[p] = NewSecret(
+			s.Session, r[1].([]byte), r[2].([]byte), r[3].(string),
+		)
 	}
 
 	return
@@ -196,39 +213,28 @@ func (s *Service) GetSession() (ssn *Session, err error) {
 */
 func (s *Service) Lock(objectPaths ...dbus.ObjectPath) (err error) {
 
-	var errs []error = make([]error, 0)
 	// We only use these as destinations.
 	var locked []dbus.ObjectPath
 	var prompt *Prompt
-	var resultPath dbus.ObjectPath
+	var promptPath dbus.ObjectPath
 
 	if objectPaths == nil || len(objectPaths) == 0 {
 		objectPaths = []dbus.ObjectPath{s.Dbus.Path()}
 	}
 
-	for _, p := range objectPaths {
-		if err = s.Dbus.Call(
-			DbusServiceLock, 0, p,
-		).Store(&locked, &resultPath); err != nil {
-			errs = append(errs, err)
-			err = nil
-			continue
-		}
-
-		if isPrompt(resultPath) {
-
-			prompt = NewPrompt(s.Conn, resultPath)
-
-			if _, err = prompt.Prompt(); err != nil {
-				errs = append(errs, err)
-				err = nil
-				continue
-			}
-		}
+	if err = s.Dbus.Call(
+		DbusServiceLock, 0, objectPaths,
+	).Store(&locked, &promptPath); err != nil {
+		return
 	}
 
-	if errs != nil && len(errs) > 0 {
-		err = NewErrors(errs...)
+	if isPrompt(promptPath) {
+
+		prompt = NewPrompt(s.Conn, promptPath)
+
+		if _, err = prompt.Prompt(); err != nil {
+			return
+		}
 	}
 
 	return
@@ -407,7 +413,6 @@ func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error)
 */
 func (s *Service) Unlock(objectPaths ...dbus.ObjectPath) (err error) {
 
-	var errs []error = make([]error, 0)
 	var unlocked []dbus.ObjectPath
 	var prompt *Prompt
 	var resultPath dbus.ObjectPath
@@ -416,29 +421,19 @@ func (s *Service) Unlock(objectPaths ...dbus.ObjectPath) (err error) {
 		objectPaths = []dbus.ObjectPath{s.Dbus.Path()}
 	}
 
-	for _, p := range objectPaths {
-		if err = s.Dbus.Call(
-			DbusServiceUnlock, 0, p,
-		).Store(&unlocked, &resultPath); err != nil {
-			errs = append(errs, err)
-			err = nil
-			continue
-		}
-
-		if isPrompt(resultPath) {
-
-			prompt = NewPrompt(s.Conn, resultPath)
-
-			if _, err = prompt.Prompt(); err != nil {
-				errs = append(errs, err)
-				err = nil
-				continue
-			}
-		}
+	if err = s.Dbus.Call(
+		DbusServiceUnlock, 0, objectPaths,
+	).Store(&unlocked, &resultPath); err != nil {
+		return
 	}
 
-	if errs != nil && len(errs) > 0 {
-		err = NewErrors(errs...)
+	if isPrompt(resultPath) {
+
+		prompt = NewPrompt(s.Conn, resultPath)
+
+		if _, err = prompt.Prompt(); err != nil {
+			return
+		}
 	}
 
 	return

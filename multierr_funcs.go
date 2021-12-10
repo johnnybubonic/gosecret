@@ -8,7 +8,7 @@ import (
 	NewErrors returns a new MultiError based on a slice of error.Error (errs).
 	Any nil errors are trimmed. If there are no actual errors after trimming, err will be nil.
 */
-func NewErrors(errs ...error) (err *MultiError) {
+func NewErrors(errs ...error) (err error) {
 
 	if errs == nil || len(errs) == 0 {
 		return
@@ -46,7 +46,7 @@ func (e *MultiError) Error() (errStr string) {
 	}
 
 	for idx, err := range e.Errors {
-		if (idx +1 ) < numErrs {
+		if (idx + 1) < numErrs {
 			errStr += fmt.Sprintf(err.Error(), e.ErrorSep)
 		} else {
 			errStr += err.Error()

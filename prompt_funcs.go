@@ -23,6 +23,8 @@ func (p *Prompt) Prompt() (promptValue *dbus.Variant, err error) {
 	var c chan *dbus.Signal
 	var result *dbus.Signal
 
+	promptValue = new(dbus.Variant)
+
 	// Prompts are asynchronous; we connect to the signal and block with a channel until we get a response.
 	c = make(chan *dbus.Signal, 10)
 	defer close(c)
@@ -31,7 +33,7 @@ func (p *Prompt) Prompt() (promptValue *dbus.Variant, err error) {
 	defer p.Conn.RemoveSignal(c)
 
 	if err = p.Dbus.Call(
-		DbusPrompterInterface, 0, "", // TODO: This last argument, the string, is for "window ID". I'm unclear what for.
+		DbusPrompterInterface, 0, "GoSecret.Prompt", // TODO: This last argument, the string, is for "window ID". I'm unclear what for.
 	).Store(); err != nil {
 		return
 	}
