@@ -40,52 +40,6 @@ func TestNewCollection(t *testing.T) {
 }
 
 /*
-	TestCollection_Label tests the following internal functions/methods via nested calls:
-		(all calls in TestNewCollection)
-		Service.GetCollection
-		Collection.Label
-
-*/
-func TestCollection_Label(t *testing.T) {
-
-	var svc *Service
-	var collection *Collection
-	var collLabel string
-	var err error
-
-	if svc, err = NewService(); err != nil {
-		t.Fatalf("NewService failed: %v", err.Error())
-	}
-
-	if collection, err = svc.GetCollection(defaultCollectionLabel); err != nil {
-		t.Errorf(
-			"failed when fetching collection '%v': %v",
-			defaultCollectionLabel, err.Error(),
-		)
-		err = nil
-		if err = svc.Close(); err != nil {
-			t.Errorf("could not close Service.Session: %v", err.Error())
-		}
-	}
-
-	if collLabel, err = collection.Label(); err != nil {
-		t.Errorf("cannot fetch label for '%v': %v", string(collection.Dbus.Path()), err.Error())
-		if err = svc.Close(); err != nil {
-			t.Fatalf("could not close Service.Session: %v", err.Error())
-		}
-	}
-
-	if defaultCollection != collLabel {
-		t.Errorf("fetched collection ('%v') does not match fetched collection label ('%v')", collLabel, defaultCollection)
-	}
-
-	if err = svc.Close(); err != nil {
-		t.Errorf("could not close Service.Session: %v", err.Error())
-	}
-
-}
-
-/*
 	TestCollection_Items tests the following internal functions/methods via nested calls:
 
 		(all calls in TestNewCollection)
@@ -150,6 +104,94 @@ func TestCollection_Items(t *testing.T) {
 			t.Errorf("failed to delete created item '%v': %v", string(item.Dbus.Path()), err.Error())
 		}
 
+	}
+
+	if err = svc.Close(); err != nil {
+		t.Errorf("could not close Service.Session: %v", err.Error())
+	}
+}
+
+/*
+	TestCollection_Label tests the following internal functions/methods via nested calls:
+
+		(all calls in TestNewCollection)
+		Service.GetCollection
+		Collection.Label
+		Collection.PathName
+
+*/
+func TestCollection_Label(t *testing.T) {
+
+	var svc *Service
+	var collection *Collection
+	var collLabel string
+	var err error
+
+	if svc, err = NewService(); err != nil {
+		t.Fatalf("NewService failed: %v", err.Error())
+	}
+
+	if collection, err = svc.GetCollection(defaultCollectionLabel); err != nil {
+		t.Errorf(
+			"failed when fetching collection '%v': %v",
+			defaultCollectionLabel, err.Error(),
+		)
+		err = nil
+		if err = svc.Close(); err != nil {
+			t.Errorf("could not close Service.Session: %v", err.Error())
+		}
+	}
+
+	if collLabel, err = collection.Label(); err != nil {
+		t.Errorf("cannot fetch label for '%v': %v", string(collection.Dbus.Path()), err.Error())
+		if err = svc.Close(); err != nil {
+			t.Fatalf("could not close Service.Session: %v", err.Error())
+		}
+	}
+
+	if defaultCollectionLabel != collLabel {
+		t.Errorf("fetched collection ('%v') does not match fetched collection label ('%v')", collLabel, defaultCollectionLabel)
+	}
+
+	if err = svc.Close(); err != nil {
+		t.Errorf("could not close Service.Session: %v", err.Error())
+	}
+
+}
+
+/*
+	TestCollection_Locked tests the following internal functions/methods via nested calls:
+
+		(all calls in TestNewCollection)
+		Collection.Locked
+
+*/
+func TestCollection_Locked(t *testing.T) {
+
+	var svc *Service
+	var collection *Collection
+	var isLocked bool
+	var err error
+
+	if svc, err = NewService(); err != nil {
+		t.Fatalf("NewService failed: %v", err.Error())
+	}
+
+	if collection, err = svc.GetCollection(defaultCollection); err != nil {
+		t.Errorf(
+			"failed when fetching collection '%v': %v",
+			defaultCollectionLabel, err.Error(),
+		)
+		err = nil
+		if err = svc.Close(); err != nil {
+			t.Errorf("could not close Service.Session: %v", err.Error())
+		}
+	}
+
+	if isLocked, err = collection.Locked(); err != nil {
+		t.Errorf("failed to get lock status for collection '%v': %v", collection.PathName(), err.Error())
+	} else {
+		t.Logf("collection '%v' lock status: %v", collection.PathName(), isLocked)
 	}
 
 	if err = svc.Close(); err != nil {

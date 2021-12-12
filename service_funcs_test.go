@@ -85,7 +85,7 @@ func TestService_Collections(t *testing.T) {
 		}
 		t.Logf(
 			"collection #%v (name '%v', label '%v'): created %v, last modified %v",
-			idx, c.name, collLabel, created, modified,
+			idx, c.PathName(), collLabel, created, modified,
 		)
 	}
 

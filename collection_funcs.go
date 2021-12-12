@@ -259,6 +259,22 @@ func (c *Collection) Modified() (modified time.Time, isChanged bool, err error) 
 }
 
 /*
+	PathName returns the "real" name of a Collection.
+	In some cases, the Collection.Label may not be the actual *name* of the collection
+	(i.e. the label is different from the name used in the Dbus path).
+	This is a thin wrapper around simply extracting the last item from
+	the Collection.Dbus.Path().
+*/
+func (c *Collection) PathName() (realName string) {
+
+	var pathSplit []string = strings.Split(string(c.Dbus.Path()), "/")
+
+	realName = pathSplit[len(pathSplit)-1]
+
+	return
+}
+
+/*
 	setModify updates the Collection's modification time (as specified by Collection.Modified).
 	It seems that this does not update automatically.
 */
