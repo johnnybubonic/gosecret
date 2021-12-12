@@ -41,6 +41,66 @@ func NewCollection(service *Service, path dbus.ObjectPath) (coll *Collection, er
 	return
 }
 
+// CreateItem returns a pointer to an Item based on a label, some attributes, a Secret, and whether any existing secret with the same label should be replaced or not.
+func (c *Collection) CreateItem(label string, attrs map[string]string, secret *Secret, replace bool) (item *Item, err error) {
+
+	var prompt *Prompt
+	var path dbus.ObjectPath
+	var promptPath dbus.ObjectPath
+	var variant *dbus.Variant
+	var props map[string]dbus.Variant = make(map[string]dbus.Variant)
+
+	props[DbusItemLabel] = dbus.MakeVariant(label)
+	props[DbusItemAttributes] = dbus.MakeVariant(attrs)
+
+	if err = c.Dbus.Call(
+		DbusCollectionCreateItem, 0, props, secret, replace,
+	).Store(&path, &promptPath); err != nil {
+		return
+	}
+
+	if isPrompt(promptPath) {
+		prompt = NewPrompt(c.Conn, promptPath)
+
+		if variant, err = prompt.Prompt(); err != nil {
+			return
+		}
+
+		path = variant.Value().(dbus.ObjectPath)
+	}
+
+	item, err = NewItem(c, path)
+
+	return
+}
+
+/*
+	Delete removes a Collection.
+	While *technically* not necessary, it is recommended that you iterate through
+	Collection.Items and do an Item.Delete for each item *before* calling Collection.Delete;
+	the item paths are cached as "orphaned paths" in Dbus otherwise if not deleted before deleting
+	their Collection. They should clear on a reboot or restart of Dbus (but rebooting Dbus on a system in use is... troublesome).
+*/
+func (c *Collection) Delete() (err error) {
+
+	var promptPath dbus.ObjectPath
+	var prompt *Prompt
+
+	if err = c.Dbus.Call(DbusCollectionDelete, 0).Store(&promptPath); err != nil {
+		return
+	}
+
+	if isPrompt(promptPath) {
+
+		prompt = NewPrompt(c.Conn, promptPath)
+		if _, err = prompt.Prompt(); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 // Items returns a slice of Item pointers in the Collection.
 func (c *Collection) Items() (items []*Item, err error) {
 
@@ -70,22 +130,46 @@ func (c *Collection) Items() (items []*Item, err error) {
 	return
 }
 
-// Delete removes a Collection.
-func (c *Collection) Delete() (err error) {
+// Label returns the Collection label (name).
+func (c *Collection) Label() (label string, err error) {
 
-	var promptPath dbus.ObjectPath
-	var prompt *Prompt
+	var variant dbus.Variant
 
-	if err = c.Dbus.Call(DbusCollectionDelete, 0).Store(&promptPath); err != nil {
+	if variant, err = c.Dbus.GetProperty(DbusCollectionLabel); err != nil {
 		return
 	}
 
-	if isPrompt(promptPath) {
+	label = variant.Value().(string)
 
-		prompt = NewPrompt(c.Conn, promptPath)
-		if _, err = prompt.Prompt(); err != nil {
-			return
-		}
+	if label != c.name {
+		c.name = label
+	}
+
+	return
+}
+
+// Locked indicates if a Collection is locked (true) or unlocked (false).
+func (c *Collection) Locked() (isLocked bool, err error) {
+
+	var variant dbus.Variant
+
+	if variant, err = c.Dbus.GetProperty(DbusCollectionLocked); err != nil {
+		isLocked = true
+		return
+	}
+
+	isLocked = variant.Value().(bool)
+
+	return
+}
+
+// Relabel modifies the Collection's label in Dbus.
+func (c *Collection) Relabel(newLabel string) (err error) {
+
+	var variant dbus.Variant = dbus.MakeVariant(newLabel)
+
+	if err = c.Dbus.SetProperty(DbusCollectionLabel, variant); err != nil {
+		return
 	}
 
 	return
@@ -120,84 +204,6 @@ func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 		}
 	}
 	err = NewErrors(err)
-
-	return
-}
-
-// CreateItem returns a pointer to an Item based on a label, some attributes, a Secret, and whether any existing secret with the same label should be replaced or not.
-func (c *Collection) CreateItem(label string, attrs map[string]string, secret *Secret, replace bool) (item *Item, err error) {
-
-	var prompt *Prompt
-	var path dbus.ObjectPath
-	var promptPath dbus.ObjectPath
-	var variant *dbus.Variant
-	var props map[string]dbus.Variant = make(map[string]dbus.Variant)
-
-	props[DbusItemLabel] = dbus.MakeVariant(label)
-	props[DbusItemAttributes] = dbus.MakeVariant(attrs)
-
-	if err = c.Dbus.Call(
-		DbusCollectionCreateItem, 0, props, secret, replace,
-	).Store(&path, &promptPath); err != nil {
-		return
-	}
-
-	if isPrompt(promptPath) {
-		prompt = NewPrompt(c.Conn, promptPath)
-
-		if variant, err = prompt.Prompt(); err != nil {
-			return
-		}
-
-		path = variant.Value().(dbus.ObjectPath)
-	}
-
-	item, err = NewItem(c, path)
-
-	return
-}
-
-// Locked indicates if a Collection is locked (true) or unlocked (false).
-func (c *Collection) Locked() (isLocked bool, err error) {
-
-	var variant dbus.Variant
-
-	if variant, err = c.Dbus.GetProperty(DbusCollectionLocked); err != nil {
-		isLocked = true
-		return
-	}
-
-	isLocked = variant.Value().(bool)
-
-	return
-}
-
-// Label returns the Collection label (name).
-func (c *Collection) Label() (label string, err error) {
-
-	var variant dbus.Variant
-
-	if variant, err = c.Dbus.GetProperty(DbusCollectionLabel); err != nil {
-		return
-	}
-
-	label = variant.Value().(string)
-
-	if label != c.name {
-		c.name = label
-	}
-
-	return
-}
-
-// Relabel modifies the Collection's label in Dbus.
-func (c *Collection) Relabel(newLabel string) (err error) {
-
-	var variant dbus.Variant = dbus.MakeVariant(newLabel)
-
-	if err = c.Dbus.SetProperty(DbusItemLabel, variant); err != nil {
-		return
-	}
 
 	return
 }
@@ -248,6 +254,17 @@ func (c *Collection) Modified() (modified time.Time, isChanged bool, err error) 
 
 	isChanged = modified.After(c.lastModified)
 	c.lastModified = modified
+
+	return
+}
+
+/*
+	setModify updates the Collection's modification time (as specified by Collection.Modified).
+	It seems that this does not update automatically.
+*/
+func (c *Collection) setModify() (err error) {
+
+	err = c.Dbus.SetProperty(DbusCollectionModified, uint64(time.Now().Unix()))
 
 	return
 }

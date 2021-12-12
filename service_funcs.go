@@ -124,7 +124,9 @@ func (s *Service) CreateCollection(label string) (collection *Collection, err er
 */
 func (s *Service) GetCollection(name string) (c *Collection, err error) {
 
+	var errs []error
 	var colls []*Collection
+	var collLabel string
 
 	// First check for an alias.
 	if c, err = s.ReadAlias(name); err != nil && err != ErrDoesNotExist {
@@ -147,8 +149,26 @@ func (s *Service) GetCollection(name string) (c *Collection, err error) {
 		}
 	}
 
+	// Still nothing? Try by label.
+	for _, i := range colls {
+		if collLabel, err = i.Label(); err != nil {
+			errs = append(errs, err)
+			err = nil
+			continue
+		}
+		if collLabel == name {
+			c = i
+			return
+		}
+	}
+
 	// Couldn't find it by the given name.
-	err = ErrDoesNotExist
+	if errs != nil || len(errs) > 0 {
+		errs = append([]error{ErrDoesNotExist}, errs...)
+		err = NewErrors(errs...)
+	} else {
+		err = ErrDoesNotExist
+	}
 
 	return
 }

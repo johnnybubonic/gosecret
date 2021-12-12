@@ -2,6 +2,7 @@ package gosecret
 
 import (
 	"testing"
+	`time`
 
 	`github.com/godbus/dbus/v5`
 )
@@ -43,12 +44,16 @@ func TestNewService(t *testing.T) {
 			NewCollection
 				Collection.Modified
 			NewErrors
+		Collection.Created
 */
 func TestService_Collections(t *testing.T) {
 
 	var err error
 	var svc *Service
 	var colls []*Collection
+	var collLabel string
+	var created time.Time
+	var modified time.Time
 
 	if svc, err = NewService(); err != nil {
 		t.Fatalf("could not get new Service via NewService: %v", err.Error())
@@ -58,6 +63,30 @@ func TestService_Collections(t *testing.T) {
 		t.Errorf("could not get Service.Collections: %v", err.Error())
 	} else {
 		t.Logf("found %v collections via Service.Collections", len(colls))
+	}
+	for idx, c := range colls {
+		if collLabel, err = c.Label(); err != nil {
+			t.Errorf(
+				"failed to get label for collection '%v': %v",
+				string(c.Dbus.Path()), err.Error(),
+			)
+		}
+		if created, err = c.Created(); err != nil {
+			t.Errorf(
+				"failed to get created time for collection '%v': %v",
+				string(c.Dbus.Path()), err.Error(),
+			)
+		}
+		if modified, _, err = c.Modified(); err != nil {
+			t.Errorf(
+				"failed to get modified time for collection '%v': %v",
+				string(c.Dbus.Path()), err.Error(),
+			)
+		}
+		t.Logf(
+			"collection #%v (name '%v', label '%v'): created %v, last modified %v",
+			idx, c.name, collLabel, created, modified,
+		)
 	}
 
 	if err = svc.Close(); err != nil {
@@ -79,7 +108,7 @@ func TestService_Collections(t *testing.T) {
 	(By extension, Service.CreateCollection is also tested as it's a very thin wrapper
 	around Service.CreateAliasedCollection).
 */
-/* DISABLED. Currently, *only* the alias "default" is allowed. TODO: revisit in future?
+/* DISABLED. Currently (as of 0.20.4), *only* the alias "default" is allowed. TODO: revisit in future?
 func TestService_CreateAliasedCollection(t *testing.T) {
 
 	var err error
@@ -121,12 +150,18 @@ func TestService_CreateAliasedCollection(t *testing.T) {
 	TestService_GetCollection tests the following internal functions/methods via nested calls:
 
 		(all calls in TestService_CreateAliasedCollection)
+		(all calls in TestService_Collections)
+
+
+			NewErrors
+		Collection.Created
 		Service.GetCollection
-			(all calls in TestService_Collections)
+			NewCollection
+			Collection.Modified
 			Service.ReadAlias
 
 	The default collection (login) is fetched instead of creating one as this collection should exist,
-	and tests fetching existing collections instead of newly-created ones.
+	and thus this function tests fetching existing collections instead of newly-created ones.
 */
 func TestService_GetCollection(t *testing.T) {
 
@@ -162,6 +197,7 @@ func TestService_GetCollection(t *testing.T) {
 		NewSecret
 		Collection.CreateItem
 		Item.Label
+		Item.Delete
 
 */
 func TestService_Secrets(t *testing.T) {
@@ -177,30 +213,49 @@ func TestService_Secrets(t *testing.T) {
 	var testSecret *Secret
 	var secretsResult map[dbus.ObjectPath]*Secret
 	var itemPaths []dbus.ObjectPath
-	var itemAttrs map[string]string = map[string]string{
-		"GOSECRET": "yes",
-	}
+	var created time.Time
+	var modified time.Time
+	var newModified time.Time
+	var wasModified bool
+	var isModified bool
 
 	if svc, err = NewService(); err != nil {
 		t.Fatalf("could not get new Service via NewService: %v", err.Error())
 	}
 
 	if collection, err = svc.CreateCollection(collectionName.String()); err != nil {
+		t.Errorf("could not create collection '%v': %v", collectionName.String(), err.Error())
 		if err = svc.Close(); err != nil {
-			t.Errorf("could not close Service.Session: %v", err.Error())
+			t.Fatalf("could not close Service.Session: %v", err.Error())
 		}
-		t.Fatalf("could not create collection '%v': %v", collectionName.String(), err.Error())
 	} else {
 		t.Logf("created collection '%v' at path '%v' successfully", collectionName.String(), string(collection.Dbus.Path()))
 	}
 
+	if created, err = collection.Created(); err != nil {
+		t.Errorf(
+			"failed to get created time for '%v': %v",
+			collectionName.String(), err.Error(),
+		)
+	}
+	if modified, wasModified, err = collection.Modified(); err != nil {
+		t.Errorf(
+			"failed to get modified time for '%v': %v",
+			collectionName.String(), err.Error(),
+		)
+	}
+	t.Logf(
+		"%v: collection '%v': created at %v, last modified at %v; was changed: %v",
+		time.Now(), collectionName.String(), created, modified, wasModified,
+	)
+
 	// Create a secret
 	testSecret = NewSecret(svc.Session, nil, []byte(testSecretContent), "text/plain")
 	if testItem, err = collection.CreateItem(testItemLabel, itemAttrs, testSecret, true); err != nil {
+		t.Errorf("could not create Item in collection '%v': %v", collectionName.String(), err.Error())
 		if err = svc.Close(); err != nil {
-			t.Errorf("could not close Service.Session: %v", err.Error())
+			t.Fatalf("could not close Service.Session: %v", err.Error())
 		}
-		t.Fatalf("could not create Item in collection '%v': %v", collectionName.String(), err.Error())
 	}
 
 	if itemName, err = testItem.Label(); err != nil {
@@ -241,7 +296,46 @@ func TestService_Secrets(t *testing.T) {
 		}
 	}
 
-	// Delete the collection to clean up.
+	// Confirm the modification information changed.
+	_ = newModified
+	_ = isModified
+	/* TODO: Disabled for now; it *seems* the collection modification time doesn't auto-update? See collection.setModify if not.
+	if newModified, isModified, err = collection.Modified(); err != nil {
+		t.Errorf(
+			"failed to get modified time for '%v': %v",
+			collectionName.String(), err.Error(),
+		)
+	}
+	t.Logf(
+		"%v: (post-change) collection '%v': last modified at %v; was changed: %v",
+		time.Now(), collectionName.String(), newModified, isModified,
+	)
+	if !isModified {
+		t.Errorf(
+			"modification tracking for collection '%v' failed; expected true but got false",
+			collectionName.String(),
+		)
+	} else {
+		t.Logf("(modification check passed)")
+	}
+	if !newModified.After(modified) {
+		t.Errorf(
+			"modification timestamp update for '%v' failed: old %v, new %v",
+			collectionName.String(), modified, newModified,
+		)
+	}
+	*/
+
+	/*
+		Delete the item and collection to clean up.
+		*Technically* the item is deleted if the collection is, but its path is held in memory if not
+		manually removed, leading to a "ghost" item.
+	*/
+	if err = testItem.Delete(); err != nil {
+		t.Errorf("could not delete test item '%v' in collection '%v': %v",
+			string(testItem.Dbus.Path()), collectionName.String(), err.Error(),
+		)
+	}
 	if err = collection.Delete(); err != nil {
 		t.Errorf(
 			"error when deleting collection '%v' when testing Service: %v",
@@ -253,8 +347,6 @@ func TestService_Secrets(t *testing.T) {
 		t.Errorf("could not close Service.Session: %v", err.Error())
 	}
 }
-
-// service.Lock & service.Unlock
 
 /*
 	TestService_Locking tests the following internal functions/methods via nested calls:
