@@ -173,15 +173,9 @@ func (i *Item) Relabel(newLabel string) (err error) {
 // ReplaceAttributes replaces the Item's attributes in Dbus.
 func (i *Item) ReplaceAttributes(newAttrs map[string]string) (err error) {
 
-	var label string
-	var props map[string]dbus.Variant = make(map[string]dbus.Variant, 0)
+	var props dbus.Variant
 
-	if label, err = i.Label(); err != nil {
-		return
-	}
-
-	props[DbusItemLabel] = dbus.MakeVariant(label)
-	props[DbusItemAttributes] = dbus.MakeVariant(newAttrs)
+	props = dbus.MakeVariant(newAttrs)
 
 	if err = i.Dbus.SetProperty(DbusItemAttributes, props); err != nil {
 		return
@@ -217,8 +211,7 @@ func (i *Item) Type() (itemType string, err error) {
 		return
 	}
 
-	i.ItemType = variant.Value().(string)
-	itemType = i.ItemType
+	itemType = variant.Value().(string)
 
 	return
 }

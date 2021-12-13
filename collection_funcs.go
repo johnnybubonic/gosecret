@@ -41,16 +41,30 @@ func NewCollection(service *Service, path dbus.ObjectPath) (coll *Collection, er
 	return
 }
 
-// CreateItem returns a pointer to an Item based on a label, some attributes, a Secret, and whether any existing secret with the same label should be replaced or not.
-func (c *Collection) CreateItem(label string, attrs map[string]string, secret *Secret, replace bool) (item *Item, err error) {
+/*
+	CreateItem returns a pointer to an Item based on a label, some attributes, a Secret,
+	whether any existing secret with the same label should be replaced or not, and the optional itemType.
+
+	itemType is optional; if specified, it should be a Dbus interface (only the first element is used).
+	If not specified, the default DbusDefaultItemType will be used.
+*/
+func (c *Collection) CreateItem(label string, attrs map[string]string, secret *Secret, replace bool, itemType ...string) (item *Item, err error) {
 
 	var prompt *Prompt
 	var path dbus.ObjectPath
 	var promptPath dbus.ObjectPath
 	var variant *dbus.Variant
 	var props map[string]dbus.Variant = make(map[string]dbus.Variant)
+	var typeString string
+
+	if itemType != nil && len(itemType) > 0 {
+		typeString = itemType[0]
+	} else {
+		typeString = DbusDefaultItemType
+	}
 
 	props[DbusItemLabel] = dbus.MakeVariant(label)
+	props[DbusItemType] = dbus.MakeVariant(typeString)
 	props[DbusItemAttributes] = dbus.MakeVariant(attrs)
 
 	if err = c.Dbus.Call(
@@ -177,8 +191,11 @@ func (c *Collection) Relabel(newLabel string) (err error) {
 
 /*
 	SearchItems searches a Collection for a matching profile string.
-	It's mostly a carry-over from go-libsecret, and is here for convenience.
+	It's mostly a carry-over from go-libsecret, and is here for convenience. IT MAY BE REMOVED IN THE FUTURE.
+
 	I promise it's not useful for any other implementation/storage of SecretService whatsoever.
+
+	Deprecated: Use Service.SearchItems instead.
 */
 func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 

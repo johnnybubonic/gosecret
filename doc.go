@@ -76,9 +76,9 @@ So the object hierarchy in THEORY looks kind of like this:
 			└─ Secret "B_2_b"
 
 And so on.
-In PRACTICE, however, most users will only have two Session items
-(a default "system" one and a temporary one that may or may not exist, running in memory for the current login session)
-and a single Collection, named "login" (and aliased to "default", usually).
+In PRACTICE, however, most users will only have two Collection items
+(a default "system" one named "login", which usually is unlocked upon login,
+and a temporary one that may or may not exist, running in memory for the current login session named `session`).
 
 Usage
 

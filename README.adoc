@@ -99,12 +99,10 @@ Service
 
 And so on.
 
-In *practice*, however, most users will only have two Session types:
+In *practice*, however, most users will only have two ``Collection``s:
 
-* a default "system" one, and
-* a temporary one that may or may not exist, running in memory for the current login session
-
-and a single Collection, named `login` (and aliased to `default`, usually).
+* a default "system" one named `login` (usually unlocked upon login), and
+* a temporary one that may or may not exist, running in memory for the current login session named `session`
 
 == Usage
 
@@ -235,3 +233,5 @@ Many functions are consolidated into a single test due to how dependent certain 
 Obviously since this library interacts directly with Dbus (and I don't want to spend the time to mock up an entire Dbus-like interface to test), all tests are integration tests rather than unit tests. Therefore in the event of a failed run, you will need to open e.g. Seahorse or d-feet or some other Dbus/SecretService browser and manually delete the created Secret Service collection. It/they should be easily identified; they use a generated UUID4 string as the collection name and it is highly unlikely that you will see any other collections named as such. If running `go test` with the verbose flag (`-v`), the name and path of the collection will be printed out. If all tests pass, the test collection should be removed automatically.
 
 The same UUID is used for all tests in a test run.
+
+You may be prompted during a test run for a password; you can simply use a blank password for this as it is the password used to protect a collection. This prompt pops up during the creation of a Collection.

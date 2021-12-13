@@ -18,6 +18,13 @@ const (
 	DbusServiceBase string = "org.freedesktop.Secret"
 	// DbusPrompterInterface is an interface for issuing a Prompt. Yes, it should be doubled up like that.
 	DbusPrompterInterface string = DbusServiceBase + ".Prompt.Prompt"
+	/*
+		DbusDefaultItemType is the default type to use for Item.Type.
+		I've only ever seen "org.gnome.keyring.NetworkPassword" in the wild
+		aside from the below. It may be legacy (gnome-keyring is obsoleted by SecretService).
+		If in doubt, the below is considered the "proper" interface.
+	*/
+	DbusDefaultItemType string = DbusServiceBase + ".Generic"
 )
 
 // Service interface.

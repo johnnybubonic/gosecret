@@ -66,12 +66,13 @@ func TestCollection_Items(t *testing.T) {
 	}
 
 	if collection, err = svc.GetCollection(defaultCollection); err != nil {
-		if err = svc.Close(); err != nil {
-			t.Errorf("could not close Service.Session: %v", err.Error())
-		}
-		t.Fatalf("failed when fetching collection '%v': %v",
+		t.Errorf("failed when fetching collection '%v': %v",
 			defaultCollection, err.Error(),
 		)
+		if err = svc.Close(); err != nil {
+			t.Fatalf("could not close Service.Session: %v", err.Error())
+		}
+		return
 	}
 
 	if items, err = collection.Items(); err != nil {
@@ -82,6 +83,22 @@ func TestCollection_Items(t *testing.T) {
 	} else {
 		t.Logf("found %v items in collection '%v' at '%v'", len(items), defaultCollection, string(collection.Dbus.Path()))
 	}
+
+	/* This is almost always going to trigger the warning. See Item.idx for details why.
+	var label string
+	for idx, i := range items {
+		if label, err = i.Label(); err != nil {
+			t.Errorf("failed to get label of item '%v' in collection '%v': %v", string(i.Dbus.Path()), collectionName.String(), err.Error())
+			continue
+		}
+		if i.idx != idx {
+			t.Logf(
+				"WARN: item '%v' ('%v') in collection '%v' internal IDX ('%v') does NOT match native slice IDX ('%v')",
+				string(i.Dbus.Path()), label, collectionName.String(), i.idx, idx,
+			)
+		}
+	}
+	*/
 
 	secret = NewSecret(svc.Session, []byte{}, []byte(testSecretContent), "text/plain")
 
@@ -136,10 +153,10 @@ func TestCollection_Label(t *testing.T) {
 			"failed when fetching collection '%v': %v",
 			defaultCollectionLabel, err.Error(),
 		)
-		err = nil
 		if err = svc.Close(); err != nil {
-			t.Errorf("could not close Service.Session: %v", err.Error())
+			t.Fatalf("could not close Service.Session: %v", err.Error())
 		}
+		return
 	}
 
 	if collLabel, err = collection.Label(); err != nil {
@@ -147,6 +164,7 @@ func TestCollection_Label(t *testing.T) {
 		if err = svc.Close(); err != nil {
 			t.Fatalf("could not close Service.Session: %v", err.Error())
 		}
+		return
 	}
 
 	if defaultCollectionLabel != collLabel {
@@ -182,16 +200,84 @@ func TestCollection_Locked(t *testing.T) {
 			"failed when fetching collection '%v': %v",
 			defaultCollectionLabel, err.Error(),
 		)
-		err = nil
 		if err = svc.Close(); err != nil {
-			t.Errorf("could not close Service.Session: %v", err.Error())
+			t.Fatalf("could not close Service.Session: %v", err.Error())
 		}
+		return
 	}
 
 	if isLocked, err = collection.Locked(); err != nil {
 		t.Errorf("failed to get lock status for collection '%v': %v", collection.PathName(), err.Error())
 	} else {
 		t.Logf("collection '%v' lock status: %v", collection.PathName(), isLocked)
+	}
+
+	if err = svc.Close(); err != nil {
+		t.Errorf("could not close Service.Session: %v", err.Error())
+	}
+}
+
+/*
+	TestCollection_Relabel tests the following internal functions/methods via nested calls:
+
+		(all calls in TestNewCollection)
+		Service.CreateCollection
+		Collection.Relabel
+
+*/
+func TestCollection_Relabel(t *testing.T) {
+
+	var svc *Service
+	var collection *Collection
+	var collLabel string
+	var newCollLabel string = collectionAlias.String()
+	var err error
+
+	if svc, err = NewService(); err != nil {
+		t.Fatalf("NewService failed: %v", err.Error())
+	}
+
+	if collection, err = svc.CreateCollection(collectionName.String()); err != nil {
+		t.Errorf("could not create collection '%v': %v", collectionName.String(), err.Error())
+		if err = svc.Close(); err != nil {
+			t.Fatalf("could not close Service.Session: %v", err.Error())
+		}
+		return
+	} else {
+		t.Logf("created collection '%v' at path '%v' successfully", collectionName.String(), string(collection.Dbus.Path()))
+	}
+
+	if collLabel, err = collection.Label(); err != nil {
+		t.Errorf("could not fetch label for collection '%v': %v", string(collection.Dbus.Path()), err.Error())
+		if err = svc.Close(); err != nil {
+			t.Fatalf("could not close Service.Session: %v", err.Error())
+		}
+		return
+	}
+
+	if err = collection.Relabel(newCollLabel); err != nil {
+		t.Errorf("failed to relabel collection '%v' to '%v': %v", collLabel, newCollLabel, err.Error())
+	} else {
+		t.Logf("relabeled collection '%v' to '%v'", collLabel, newCollLabel)
+	}
+
+	if collLabel, err = collection.Label(); err != nil {
+		t.Errorf("could not fetch label for collection '%v': %v", string(collection.Dbus.Path()), err.Error())
+		if err = collection.Delete(); err != nil {
+			t.Errorf("failed to delete collection '%v': %v", string(collection.Dbus.Path()), err.Error())
+		}
+		if err = svc.Close(); err != nil {
+			t.Fatalf("could not close Service.Session: %v", err.Error())
+		}
+		return
+	} else {
+		if collLabel != newCollLabel {
+			t.Errorf("collection did not relabel; new label '%v', actual label '%v'", newCollLabel, collLabel)
+		}
+	}
+
+	if err = collection.Delete(); err != nil {
+		t.Errorf("failed to delete collection '%v': %v", string(collection.Dbus.Path()), err.Error())
 	}
 
 	if err = svc.Close(); err != nil {

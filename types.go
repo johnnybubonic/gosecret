@@ -107,18 +107,14 @@ type Item struct {
 	*DbusObject
 	// Secret is the corresponding Secret object.
 	Secret *Secret `json:"secret"`
-	/*
-		ItemType is the type of this Item as a Dbus interface name.
-		e.g. org.gnome.keyring.NetworkPassword, org.freedesktop.Secret.Generic, org.remmina.Password, etc.
-	*/
-	ItemType string `json:"dbus_type"`
 	// lastModified is unexported because it's important that API users don't change it; it's used by Collection.Modified.
 	lastModified time.Time
 	// lastModifiedSet is unexported; it's only used to determine if this is a first-initialization of the modification time or not.
 	lastModifiedSet bool
 	/*
 		idx is the index identifier of the Item.
-		It SHOULD correlate to indices in Collection.Items, but don't rely on this.
+		It is almost guaranteed to not match the index in Collection.Items (unless you have like, only one item)
+		as those indices are static and do not determine the order that Dbus returns the list of item paths.
 	*/
 	idx int
 	// collection tracks the Collection this Item is in.

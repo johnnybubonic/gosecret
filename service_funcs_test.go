@@ -63,30 +63,31 @@ func TestService_Collections(t *testing.T) {
 		t.Errorf("could not get Service.Collections: %v", err.Error())
 	} else {
 		t.Logf("found %v collections via Service.Collections", len(colls))
-	}
-	for idx, c := range colls {
-		if collLabel, err = c.Label(); err != nil {
-			t.Errorf(
-				"failed to get label for collection '%v': %v",
-				string(c.Dbus.Path()), err.Error(),
+
+		for idx, c := range colls {
+			if collLabel, err = c.Label(); err != nil {
+				t.Errorf(
+					"failed to get label for collection '%v': %v",
+					string(c.Dbus.Path()), err.Error(),
+				)
+			}
+			if created, err = c.Created(); err != nil {
+				t.Errorf(
+					"failed to get created time for collection '%v': %v",
+					string(c.Dbus.Path()), err.Error(),
+				)
+			}
+			if modified, _, err = c.Modified(); err != nil {
+				t.Errorf(
+					"failed to get modified time for collection '%v': %v",
+					string(c.Dbus.Path()), err.Error(),
+				)
+			}
+			t.Logf(
+				"collection #%v (name '%v', label '%v'): created %v, last modified %v",
+				idx, c.PathName(), collLabel, created, modified,
 			)
 		}
-		if created, err = c.Created(); err != nil {
-			t.Errorf(
-				"failed to get created time for collection '%v': %v",
-				string(c.Dbus.Path()), err.Error(),
-			)
-		}
-		if modified, _, err = c.Modified(); err != nil {
-			t.Errorf(
-				"failed to get modified time for collection '%v': %v",
-				string(c.Dbus.Path()), err.Error(),
-			)
-		}
-		t.Logf(
-			"collection #%v (name '%v', label '%v'): created %v, last modified %v",
-			idx, c.PathName(), collLabel, created, modified,
-		)
 	}
 
 	if err = svc.Close(); err != nil {
@@ -158,7 +159,7 @@ func TestService_CreateAliasedCollection(t *testing.T) {
 		Service.GetCollection
 			NewCollection
 			Collection.Modified
-			Service.ReadAlias
+		Service.ReadAlias
 
 	The default collection (login) is fetched instead of creating one as this collection should exist,
 	and thus this function tests fetching existing collections instead of newly-created ones.
@@ -228,6 +229,7 @@ func TestService_Secrets(t *testing.T) {
 		if err = svc.Close(); err != nil {
 			t.Fatalf("could not close Service.Session: %v", err.Error())
 		}
+		return
 	} else {
 		t.Logf("created collection '%v' at path '%v' successfully", collectionName.String(), string(collection.Dbus.Path()))
 	}
@@ -256,6 +258,7 @@ func TestService_Secrets(t *testing.T) {
 		if err = svc.Close(); err != nil {
 			t.Fatalf("could not close Service.Session: %v", err.Error())
 		}
+		return
 	}
 
 	if itemName, err = testItem.Label(); err != nil {
