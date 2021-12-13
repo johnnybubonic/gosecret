@@ -30,11 +30,19 @@ func NewCollection(service *Service, path dbus.ObjectPath) (coll *Collection, er
 	}
 
 	// Populate the struct fields...
-	// TODO: use channel for errors; condense into a MultiError.
-	go coll.Locked()
-	go coll.Label()
-	go coll.Created()
-	go coll.Modified()
+	// TODO: use channel for errors; condense into a MultiError and switch to goroutines.
+	if _, err = coll.Locked(); err != nil {
+		return
+	}
+	if _, err = coll.Label(); err != nil {
+		return
+	}
+	if _, err = coll.Created(); err != nil {
+		return
+	}
+	if _, _, err = coll.Modified(); err != nil {
+		return
+	}
 
 	return
 }

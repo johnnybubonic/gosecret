@@ -34,14 +34,28 @@ func NewItem(collection *Collection, path dbus.ObjectPath) (item *Item, err erro
 	item.collection = collection
 
 	// Populate the struct fields...
-	// TODO: use channel for errors; condense into a MultiError.
-	go item.GetSecret(collection.service.Session)
-	go item.Locked()
-	go item.Attributes()
-	go item.Label()
-	go item.Type()
-	go item.Created()
-	go item.Modified()
+	// TODO: use channel for errors; condense into a MultiError and switch to goroutines.
+	if _, err = item.GetSecret(collection.service.Session); err != nil {
+		return
+	}
+	if _, err = item.Locked(); err != nil {
+		return
+	}
+	if _, err = item.Attributes(); err != nil {
+		return
+	}
+	if _, err = item.Label(); err != nil {
+		return
+	}
+	if _, err = item.Type(); err != nil {
+		return
+	}
+	if _, err = item.Created(); err != nil {
+		return
+	}
+	if _, _, err = item.Modified(); err != nil {
+		return
+	}
 
 	return
 }

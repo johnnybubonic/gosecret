@@ -269,8 +269,11 @@ func (s *Service) Lock(objects ...LockableObject) (err error) {
 		}
 	}
 
+	// TODO: use channels and goroutines here.
 	for _, o := range objects {
-		go o.Locked()
+		if _, err = o.Locked(); err != nil {
+			return
+		}
 	}
 
 	return
@@ -491,8 +494,11 @@ func (s *Service) Unlock(objects ...LockableObject) (err error) {
 		}
 	}
 
+	// TODO: use channels and goroutines here.
 	for _, o := range objects {
-		go o.Locked()
+		if _, err = o.Locked(); err != nil {
+			return
+		}
 	}
 
 	return
