@@ -169,5 +169,5 @@ type Secret struct {
 	session *Session
 }
 
-// SecretValue is a custom type that handles JSON encoding/decoding a little more easily.
+// SecretValue is a custom type that handles JSON encoding a little more easily.
 type SecretValue []byte
