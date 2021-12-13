@@ -81,13 +81,12 @@ func (c *Collection) CreateItem(label string, attrs map[string]string, secret *S
 	props[DbusItemLabel] = dbus.MakeVariant(label)
 	props[DbusItemType] = dbus.MakeVariant(typeString)
 	props[DbusItemAttributes] = dbus.MakeVariant(attrs)
+	props[DbusItemCreated] = dbus.MakeVariant(uint64(time.Now().Unix()))
+	// props[DbusItemModified] = dbus.MakeVariant(uint64(time.Now().Unix()))
 
 	if err = c.Dbus.Call(
 		DbusCollectionCreateItem, 0, props, secret, replace,
 	).Store(&path, &promptPath); err != nil {
-		return
-	}
-	if err = c.setModify(); err != nil {
 		return
 	}
 
@@ -102,9 +101,6 @@ func (c *Collection) CreateItem(label string, attrs map[string]string, secret *S
 	}
 
 	item, err = NewItem(c, path)
-	if err = item.setCreate(); err != nil {
-		return
-	}
 
 	return
 }
@@ -196,6 +192,10 @@ func (c *Collection) Lock() (err error) {
 	}
 	c.IsLocked = true
 
+	if _, _, err = c.Modified(); err != nil {
+		return
+	}
+
 	return
 }
 
@@ -224,6 +224,10 @@ func (c *Collection) Relabel(newLabel string) (err error) {
 		return
 	}
 	c.LabelName = newLabel
+
+	if _, _, err = c.Modified(); err != nil {
+		return
+	}
 
 	return
 }
@@ -273,7 +277,15 @@ func (c *Collection) SetAlias(alias string) (err error) {
 		DbusServiceSetAlias, 0, alias, c.Dbus.Path(),
 	)
 
-	err = call.Err
+	if err = call.Err; err != nil {
+		return
+	}
+
+	c.Alias = alias
+
+	if _, _, err = c.Modified(); err != nil {
+		return
+	}
 
 	return
 }
@@ -293,6 +305,10 @@ func (c *Collection) Unlock() (err error) {
 	}
 	c.IsLocked = false
 
+	if _, _, err = c.Modified(); err != nil {
+		return
+	}
+
 	return
 }
 
@@ -309,6 +325,7 @@ func (c *Collection) Created() (created time.Time, err error) {
 	timeInt = variant.Value().(uint64)
 
 	created = time.Unix(int64(timeInt), 0)
+	c.CreatedAt = created
 
 	return
 }
@@ -342,40 +359,6 @@ func (c *Collection) Modified() (modified time.Time, isChanged bool, err error) 
 
 	isChanged = modified.After(c.LastModified)
 	c.LastModified = modified
-
-	return
-}
-
-/*
-	setCreate updates the Collection's creation time (as specified by Collection.Created).
-	It seems that this does not generate automatically.
-*/
-func (c *Collection) setCreate() (err error) {
-
-	var t time.Time = time.Now()
-
-	if err = c.Dbus.SetProperty(DbusCollectionCreated, uint64(t.Unix())); err != nil {
-		return
-	}
-	c.CreatedAt = t
-
-	if err = c.setModify(); err != nil {
-		return
-	}
-
-	return
-}
-
-/*
-	setModify updates the Collection's modification time (as specified by Collection.Modified).
-	It seems that this does not update automatically.
-*/
-func (c *Collection) setModify() (err error) {
-
-	var t time.Time = time.Now()
-
-	err = c.Dbus.SetProperty(DbusCollectionModified, uint64(t.Unix()))
-	c.LastModified = t
 
 	return
 }

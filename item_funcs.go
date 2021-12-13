@@ -96,7 +96,7 @@ func (i *Item) ChangeItemType(newItemType string) (err error) {
 	}
 	i.SecretType = newItemType
 
-	if err = i.setModify(); err != nil {
+	if _, _, err = i.Modified(); err != nil {
 		return
 	}
 
@@ -216,7 +216,7 @@ func (i *Item) Relabel(newLabel string) (err error) {
 	}
 	i.LabelName = newLabel
 
-	if err = i.setModify(); err != nil {
+	if _, _, err = i.Modified(); err != nil {
 		return
 	}
 
@@ -235,7 +235,7 @@ func (i *Item) ReplaceAttributes(newAttrs map[string]string) (err error) {
 	}
 	i.Attrs = newAttrs
 
-	if err = i.setModify(); err != nil {
+	if _, _, err = i.Modified(); err != nil {
 		return
 	}
 
@@ -256,7 +256,7 @@ func (i *Item) SetSecret(secret *Secret) (err error) {
 	}
 	i.Secret = secret
 
-	if err = i.setModify(); err != nil {
+	if _, _, err = i.Modified(); err != nil {
 		return
 	}
 
@@ -293,6 +293,10 @@ func (i *Item) Lock() (err error) {
 	}
 	i.IsLocked = true
 
+	if _, _, err = i.Modified(); err != nil {
+		return
+	}
+
 	return
 }
 
@@ -326,6 +330,10 @@ func (i *Item) Unlock() (err error) {
 		return
 	}
 	i.IsLocked = false
+
+	if _, _, err = i.Modified(); err != nil {
+		return
+	}
 
 	return
 }
@@ -377,40 +385,6 @@ func (i *Item) Modified() (modified time.Time, isChanged bool, err error) {
 
 	isChanged = modified.After(i.LastModified)
 	i.LastModified = modified
-
-	return
-}
-
-/*
-	setCreate updates the Item's creation time (as specified by Item.Created).
-	It seems that this does not generate automatically.
-*/
-func (i *Item) setCreate() (err error) {
-
-	var t time.Time = time.Now()
-
-	if err = i.Dbus.SetProperty(DbusItemCreated, uint64(t.Unix())); err != nil {
-		return
-	}
-	i.CreatedAt = t
-
-	if err = i.setModify(); err != nil {
-		return
-	}
-
-	return
-}
-
-/*
-	setModify updates the Item's modification time (as specified by Item.Modified).
-	It seems that this does not update automatically.
-*/
-func (i *Item) setModify() (err error) {
-
-	var t time.Time = time.Now()
-
-	err = i.Dbus.SetProperty(DbusItemModified, uint64(t.Unix()))
-	i.LastModified = t
 
 	return
 }

@@ -46,6 +46,9 @@ func TestItem(t *testing.T) {
 
 	if item, err = collection.CreateItem(testItemLabel, itemAttrs, secret, true); err != nil {
 		t.Errorf("could not create item %v in collection '%v': %v", testItemLabel, collectionName.String(), err.Error())
+		if err = collection.Delete(); err != nil {
+			t.Errorf("could not delete collection '%v': %v", collectionName.String(), err.Error())
+		}
 		if err = svc.Close(); err != nil {
 			t.Fatalf("could not close Service.Session: %v", err.Error())
 		}

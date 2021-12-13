@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	`time`
 
 	"github.com/godbus/dbus/v5"
 )
@@ -85,6 +86,8 @@ func (s *Service) CreateAliasedCollection(label, alias string) (collection *Coll
 	var props map[string]dbus.Variant = make(map[string]dbus.Variant)
 
 	props[DbusCollectionLabel] = dbus.MakeVariant(label)
+	props[DbusCollectionCreated] = dbus.MakeVariant(uint64(time.Now().Unix()))
+	props[DbusCollectionModified] = dbus.MakeVariant(uint64(time.Now().Unix()))
 
 	if err = s.Dbus.Call(
 		DbusServiceCreateCollection, 0, props, alias,
@@ -103,9 +106,6 @@ func (s *Service) CreateAliasedCollection(label, alias string) (collection *Coll
 	}
 
 	collection, err = NewCollection(s, path)
-	if err = collection.setCreate(); err != nil {
-		return
-	}
 
 	return
 }
@@ -235,7 +235,6 @@ func (s *Service) GetSession() (ssn *Session, err error) {
 // Lock locks an Unlocked Collection or Item (LockableObject).
 func (s *Service) Lock(objects ...LockableObject) (err error) {
 
-	var variant dbus.Variant
 	var toLock []dbus.ObjectPath
 	// We only use these as destinations.
 	var locked []dbus.ObjectPath
@@ -252,10 +251,9 @@ func (s *Service) Lock(objects ...LockableObject) (err error) {
 	for idx, o := range objects {
 		toLock[idx] = o.path()
 	}
-	variant = dbus.MakeVariant(toLock)
 
 	if err = s.Dbus.Call(
-		DbusServiceLock, 0, variant,
+		DbusServiceLock, 0, toLock,
 	).Store(&locked, &promptPath); err != nil {
 		return
 	}
@@ -347,7 +345,7 @@ func (s *Service) ReadAlias(alias string) (collection *Collection, err error) {
 // RemoveAlias is a thin wrapper around Service.SetAlias using the removal method specified there.
 func (s *Service) RemoveAlias(alias string) (err error) {
 
-	if err = s.SetAlias(alias, dbus.ObjectPath("/")); err != nil {
+	if err = s.SetAlias(alias, DbusRemoveAliasPath); err != nil {
 		return
 	}
 
@@ -447,12 +445,25 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error) {
 
 	var c *dbus.Call
+	var collection *Collection
+
+	if collection, err = s.GetCollection(alias); err != nil {
+		return
+	}
 
 	c = s.Dbus.Call(
 		DbusServiceSetAlias, 0, alias, objectPath,
 	)
 
-	err = c.Err
+	if err = c.Err; err != nil {
+		return
+	}
+
+	if objectPath == DbusRemoveAliasPath {
+		collection.Alias = ""
+	} else {
+		collection.Alias = alias
+	}
 
 	return
 }
@@ -460,7 +471,6 @@ func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error)
 // Unlock unlocks a locked Collection or Item (LockableObject).
 func (s *Service) Unlock(objects ...LockableObject) (err error) {
 
-	var variant dbus.Variant
 	var toUnlock []dbus.ObjectPath
 	// We only use these as destinations.
 	var unlocked []dbus.ObjectPath
@@ -477,10 +487,9 @@ func (s *Service) Unlock(objects ...LockableObject) (err error) {
 	for idx, o := range objects {
 		toUnlock[idx] = o.path()
 	}
-	variant = dbus.MakeVariant(toUnlock)
 
 	if err = s.Dbus.Call(
-		DbusServiceUnlock, 0, variant,
+		DbusServiceUnlock, 0, toUnlock,
 	).Store(&unlocked, &resultPath); err != nil {
 		return
 	}

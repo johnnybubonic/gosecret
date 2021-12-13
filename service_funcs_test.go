@@ -277,7 +277,13 @@ func TestService_Secrets(t *testing.T) {
 			t.Errorf("at least one locked item in collection '%v'", collectionName.String())
 		}
 		if len(itemResultsUnlocked) != 1 {
-			t.Errorf("number of unlocked items in collection '%v' is not equal to 1", collectionName.String())
+			t.Errorf(
+				"number of unlocked items in collection '%v' (%v) is not equal to 1; items dump pending...",
+				collectionName.String(), len(itemResultsUnlocked),
+			)
+			for idx, i := range itemResultsUnlocked {
+				t.Logf("ITEM #%v IN COLLECTION %v: %v ('%v')", idx, collectionName.String(), i.LabelName, string(i.Dbus.Path()))
+			}
 		}
 		if resultItemName, err = itemResultsUnlocked[0].Label(); err != nil {
 			t.Errorf("cannot fetch test Item name from collection '%v' in SearchItems: %v", collectionName.String(), err.Error())

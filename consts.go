@@ -1,5 +1,9 @@
 package gosecret
 
+import (
+	`github.com/godbus/dbus/v5`
+)
+
 // Constants for use with gosecret.
 const (
 	/*
@@ -22,6 +26,11 @@ const (
 		DbusDefaultItemType is the default type to use for Item.Type/Collection.CreateItem.
 	*/
 	DbusDefaultItemType string = DbusServiceBase + ".Generic"
+)
+
+// Libsecret/SecretService special values.
+var (
+	DbusRemoveAliasPath dbus.ObjectPath = dbus.ObjectPath("/")
 )
 
 // Service interface.
