@@ -1,10 +1,10 @@
 package gosecret
 
 import (
-	`strings`
+	"strings"
 	"time"
 
-	`github.com/godbus/dbus/v5`
+	"github.com/godbus/dbus/v5"
 )
 
 /*
@@ -46,7 +46,16 @@ func NewCollection(service *Service, path dbus.ObjectPath) (coll *Collection, er
 	whether any existing secret with the same label should be replaced or not, and the optional itemType.
 
 	itemType is optional; if specified, it should be a Dbus interface (only the first element is used).
-	If not specified, the default DbusDefaultItemType will be used.
+	If not specified, the default DbusDefaultItemType will be used. The most common itemType is DbusDefaultItemType
+	and is the current recommendation.
+	Other types used are:
+
+		org.gnome.keyring.NetworkPassword
+		org.gnome.keyring.Note
+
+	These are libsecret schemas as defined at
+	https://gitlab.gnome.org/GNOME/libsecret/-/blob/master/libsecret/secret-schemas.c (and bundled in with libsecret).
+	Support for adding custom schemas MAY come in the future but is unsupported currently.
 */
 func (c *Collection) CreateItem(label string, attrs map[string]string, secret *Secret, replace bool, itemType ...string) (item *Item, err error) {
 
