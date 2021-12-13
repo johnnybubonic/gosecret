@@ -118,7 +118,7 @@ func pathsFromPath(bus dbus.BusObject, path string) (paths []dbus.ObjectPath, er
 
 /*
 	NameFromPath returns an actual name (as it appears in Dbus) from a dbus.ObjectPath.
-	Note that you can get any object's dbus.ObjectPath via <object.Dbus.Path().
+	Note that you can get any object's dbus.ObjectPath via <object>.Dbus.Path().
 	path is validated to ensure it is not an empty string.
 */
 func NameFromPath(path dbus.ObjectPath) (name string, err error) {
