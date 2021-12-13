@@ -1,7 +1,6 @@
 package gosecret
 
 import (
-	"strings"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -12,8 +11,6 @@ import (
 	You will almost always want to use Service.GetCollection instead.
 */
 func NewCollection(service *Service, path dbus.ObjectPath) (coll *Collection, err error) {
-
-	var splitPath []string
 
 	if service == nil {
 		err = ErrNoDbusConn
@@ -29,14 +26,15 @@ func NewCollection(service *Service, path dbus.ObjectPath) (coll *Collection, er
 			Dbus: service.Conn.Object(DbusService, path),
 		},
 		service: service,
-		// lastModified: time.Now(),
+		// LastModified: time.Now(),
 	}
 
-	splitPath = strings.Split(string(coll.Dbus.Path()), "/")
-
-	coll.name = splitPath[len(splitPath)-1]
-
-	_, _, err = coll.Modified()
+	// Populate the struct fields...
+	// TODO: use channel for errors; condense into a MultiError.
+	go coll.Locked()
+	go coll.Label()
+	go coll.Created()
+	go coll.Modified()
 
 	return
 }
@@ -81,6 +79,9 @@ func (c *Collection) CreateItem(label string, attrs map[string]string, secret *S
 	).Store(&path, &promptPath); err != nil {
 		return
 	}
+	if err = c.setModify(); err != nil {
+		return
+	}
 
 	if isPrompt(promptPath) {
 		prompt = NewPrompt(c.Conn, promptPath)
@@ -93,6 +94,9 @@ func (c *Collection) CreateItem(label string, attrs map[string]string, secret *S
 	}
 
 	item, err = NewItem(c, path)
+	if err = item.setCreate(); err != nil {
+		return
+	}
 
 	return
 }
@@ -164,9 +168,25 @@ func (c *Collection) Label() (label string, err error) {
 
 	label = variant.Value().(string)
 
-	if label != c.name {
-		c.name = label
+	c.LabelName = label
+
+	return
+}
+
+// Lock will lock an unlocked Collection. It will no-op if the Collection is currently locked.
+func (c *Collection) Lock() (err error) {
+
+	if _, err = c.Locked(); err != nil {
+		return
 	}
+	if c.IsLocked {
+		return
+	}
+
+	if err = c.service.Lock(c); err != nil {
+		return
+	}
+	c.IsLocked = true
 
 	return
 }
@@ -182,6 +202,7 @@ func (c *Collection) Locked() (isLocked bool, err error) {
 	}
 
 	isLocked = variant.Value().(bool)
+	c.IsLocked = isLocked
 
 	return
 }
@@ -194,6 +215,7 @@ func (c *Collection) Relabel(newLabel string) (err error) {
 	if err = c.Dbus.SetProperty(DbusCollectionLabel, variant); err != nil {
 		return
 	}
+	c.LabelName = newLabel
 
 	return
 }
@@ -234,6 +256,38 @@ func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 	return
 }
 
+// SetAlias is a thin wrapper/shorthand for Service.SetAlias (but specific to this Collection).
+func (c *Collection) SetAlias(alias string) (err error) {
+
+	var call *dbus.Call
+
+	call = c.service.Dbus.Call(
+		DbusServiceSetAlias, 0, alias, c.Dbus.Path(),
+	)
+
+	err = call.Err
+
+	return
+}
+
+// Unlock will unlock a locked Collection. It will no-op if the Collection is currently unlocked.
+func (c *Collection) Unlock() (err error) {
+
+	if _, err = c.Locked(); err != nil {
+		return
+	}
+	if !c.IsLocked {
+		return
+	}
+
+	if err = c.service.Unlock(c); err != nil {
+		return
+	}
+	c.IsLocked = false
+
+	return
+}
+
 // Created returns the time.Time of when a Collection was created.
 func (c *Collection) Created() (created time.Time, err error) {
 
@@ -256,7 +310,7 @@ func (c *Collection) Created() (created time.Time, err error) {
 	that indicates if the collection has changed since the last call of Collection.Modified.
 
 	Note that when calling NewCollection, the internal library-tracked modification
-	time (Collection.lastModified) will be set to the latest modification time of the Collection
+	time (Collection.LastModified) will be set to the latest modification time of the Collection
 	itself as reported by Dbus rather than the time that NewCollection was called.
 */
 func (c *Collection) Modified() (modified time.Time, isChanged bool, err error) {
@@ -274,28 +328,32 @@ func (c *Collection) Modified() (modified time.Time, isChanged bool, err error) 
 
 	if !c.lastModifiedSet {
 		// It's "nil", so set it to modified. We can't check for a zero-value in case Dbus has it as a zero-value.
-		c.lastModified = modified
+		c.LastModified = modified
 		c.lastModifiedSet = true
 	}
 
-	isChanged = modified.After(c.lastModified)
-	c.lastModified = modified
+	isChanged = modified.After(c.LastModified)
+	c.LastModified = modified
 
 	return
 }
 
 /*
-	PathName returns the "real" name of a Collection.
-	In some cases, the Collection.Label may not be the actual *name* of the collection
-	(i.e. the label is different from the name used in the Dbus path).
-	This is a thin wrapper around simply extracting the last item from
-	the Collection.Dbus.Path().
+	setCreate updates the Collection's creation time (as specified by Collection.Created).
+	It seems that this does not generate automatically.
 */
-func (c *Collection) PathName() (realName string) {
+func (c *Collection) setCreate() (err error) {
 
-	var pathSplit []string = strings.Split(string(c.Dbus.Path()), "/")
+	var t time.Time = time.Now()
 
-	realName = pathSplit[len(pathSplit)-1]
+	if err = c.Dbus.SetProperty(DbusCollectionCreated, uint64(t.Unix())); err != nil {
+		return
+	}
+	c.CreatedAt = t
+
+	if err = c.setModify(); err != nil {
+		return
+	}
 
 	return
 }
@@ -306,7 +364,18 @@ func (c *Collection) PathName() (realName string) {
 */
 func (c *Collection) setModify() (err error) {
 
-	err = c.Dbus.SetProperty(DbusCollectionModified, uint64(time.Now().Unix()))
+	var t time.Time = time.Now()
+
+	err = c.Dbus.SetProperty(DbusCollectionModified, uint64(t.Unix()))
+	c.LastModified = t
+
+	return
+}
+
+// path is a *very* thin wrapper around Collection.Dbus.Path(). It is needed for LockableObject interface membership.
+func (c *Collection) path() (dbusPath dbus.ObjectPath) {
+
+	dbusPath = c.Dbus.Path()
 
 	return
 }

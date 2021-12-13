@@ -85,7 +85,7 @@ func TestService_Collections(t *testing.T) {
 			}
 			t.Logf(
 				"collection #%v (name '%v', label '%v'): created %v, last modified %v",
-				idx, c.PathName(), collLabel, created, modified,
+				idx, c.path(), collLabel, created, modified,
 			)
 		}
 	}
@@ -177,7 +177,7 @@ func TestService_GetCollection(t *testing.T) {
 	if coll, err = svc.GetCollection(defaultCollection); err != nil {
 		t.Errorf("failed to get collection '%v' via Service.GetCollection: %v", defaultCollection, err.Error())
 	} else {
-		t.Logf("got collection '%v' via reference '%v'", coll.name, defaultCollection)
+		t.Logf("got collection '%v' via reference '%v'", coll.LabelName, defaultCollection)
 	}
 
 	if err = svc.Close(); err != nil {
@@ -374,10 +374,11 @@ func TestService_Locking(t *testing.T) {
 	}
 
 	if collection, err = svc.CreateCollection(collectionName.String()); err != nil {
-		if err = svc.Close(); err != nil {
-			t.Errorf("could not close Service.Session: %v", err.Error())
-		}
 		t.Errorf("could not create collection '%v': %v", collectionName.String(), err.Error())
+		if err = svc.Close(); err != nil {
+			t.Fatalf("could not close Service.Session: %v", err.Error())
+		}
+		return
 	} else {
 		t.Logf("created collection '%v' at path '%v' successfully", collectionName.String(), string(collection.Dbus.Path()))
 	}
@@ -400,23 +401,23 @@ func TestService_Locking(t *testing.T) {
 
 	// Change the state.
 	if isLocked {
-		if err = svc.Unlock(collection.Dbus.Path()); err != nil {
+		if err = collection.Unlock(); err != nil {
 			t.Errorf("could not unlock collection '%v': %v", collectionName.String(), err.Error())
 		}
 		if stateChangeLock, err = collection.Locked(); err != nil {
 			t.Errorf("received error when checking collection '%v' lock status: %v", collectionName.String(), err.Error())
 		}
-		if err = svc.Lock(collection.Dbus.Path()); err != nil {
+		if err = collection.Lock(); err != nil {
 			t.Errorf("could not lock collection '%v': %v", collectionName.String(), err.Error())
 		}
 	} else {
-		if err = svc.Lock(collection.Dbus.Path()); err != nil {
+		if err = collection.Lock(); err != nil {
 			t.Errorf("could not lock collection '%v': %v", collectionName.String(), err.Error())
 		}
 		if stateChangeLock, err = collection.Locked(); err != nil {
 			t.Errorf("received error when checking collection '%v' lock status: %v", collectionName.String(), err.Error())
 		}
-		if err = svc.Unlock(collection.Dbus.Path()); err != nil {
+		if err = collection.Unlock(); err != nil {
 			t.Errorf("could not unlock collection '%v': %v", collectionName.String(), err.Error())
 		}
 	}

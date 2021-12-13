@@ -226,6 +226,9 @@ func main() {
 
 == Library Hacking
 
+=== Reference
+Aside from the above (INCREDIBLY brief and perhaps slightly inaccurate) introduction to SecretService concepts, it is recommended to see the `.ref/` directory in git. Notably, the `URLS` file profides several excellent resources for understanding SecretService further. The Dbus specification (first URL in the file) is highly recommended if you are unfamiliar with SecretService internals.
+
 === Tests
 
 Many functions are consolidated into a single test due to how dependent certain processes are on other objects. However, all functionality should be covered by test cases and the error string will always be passed through the stack to `go test -v` output.

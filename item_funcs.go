@@ -32,14 +32,16 @@ func NewItem(collection *Collection, path dbus.ObjectPath) (item *Item, err erro
 
 	item.idx, err = strconv.Atoi(splitPath[len(splitPath)-1])
 	item.collection = collection
-	if _, err = item.Attributes(); err != nil {
-		return
-	}
-	if _, err = item.Type(); err != nil {
-		return
-	}
 
-	_, _, err = item.Modified()
+	// Populate the struct fields...
+	// TODO: use channel for errors; condense into a MultiError.
+	go item.GetSecret(collection.service.Session)
+	go item.Locked()
+	go item.Attributes()
+	go item.Label()
+	go item.Type()
+	go item.Created()
+	go item.Modified()
 
 	return
 }
@@ -54,6 +56,35 @@ func (i *Item) Attributes() (attrs map[string]string, err error) {
 	}
 
 	attrs = variant.Value().(map[string]string)
+	i.Attrs = attrs
+
+	return
+}
+
+/*
+	ChangeItemType changes an Item.Type to newItemType.
+	Note that this is probably a bad idea unless you're also doing Item.SetSecret.
+	It must be a Dbus interface path (e.g. "foo.bar.Baz").
+	If newItemType is an empty string, DbusDefaultItemType will be used.
+*/
+func (i *Item) ChangeItemType(newItemType string) (err error) {
+
+	var variant dbus.Variant
+
+	if strings.TrimSpace(newItemType) == "" {
+		newItemType = DbusDefaultItemType
+	}
+
+	variant = dbus.MakeVariant(newItemType)
+
+	if err = i.Dbus.SetProperty(DbusItemType, variant); err != nil {
+		return
+	}
+	i.SecretType = newItemType
+
+	if err = i.setModify(); err != nil {
+		return
+	}
 
 	return
 }
@@ -98,6 +129,7 @@ func (i *Item) GetSecret(session *Session) (secret *Secret, err error) {
 
 	secret.session = session
 	secret.item = i
+	i.Secret = secret
 
 	return
 }
@@ -153,7 +185,9 @@ func (i *Item) ModifyAttributes(replaceAttrs map[string]string) (err error) {
 		}
 	}
 
-	err = i.ReplaceAttributes(currentProps)
+	if err = i.ReplaceAttributes(currentProps); err != nil {
+		return
+	}
 
 	return
 }
@@ -164,6 +198,11 @@ func (i *Item) Relabel(newLabel string) (err error) {
 	var variant dbus.Variant = dbus.MakeVariant(newLabel)
 
 	if err = i.Dbus.SetProperty(DbusItemLabel, variant); err != nil {
+		return
+	}
+	i.LabelName = newLabel
+
+	if err = i.setModify(); err != nil {
 		return
 	}
 
@@ -178,6 +217,11 @@ func (i *Item) ReplaceAttributes(newAttrs map[string]string) (err error) {
 	props = dbus.MakeVariant(newAttrs)
 
 	if err = i.Dbus.SetProperty(DbusItemAttributes, props); err != nil {
+		return
+	}
+	i.Attrs = newAttrs
+
+	if err = i.setModify(); err != nil {
 		return
 	}
 
@@ -196,8 +240,11 @@ func (i *Item) SetSecret(secret *Secret) (err error) {
 		err = c.Err
 		return
 	}
-
 	i.Secret = secret
+
+	if err = i.setModify(); err != nil {
+		return
+	}
 
 	return
 }
@@ -212,6 +259,25 @@ func (i *Item) Type() (itemType string, err error) {
 	}
 
 	itemType = variant.Value().(string)
+	i.SecretType = itemType
+
+	return
+}
+
+// Lock will lock an unlocked Item. It will no-op if the Item is currently locked.
+func (i *Item) Lock() (err error) {
+
+	if _, err = i.Locked(); err != nil {
+		return
+	}
+	if i.IsLocked {
+		return
+	}
+
+	if err = i.collection.service.Lock(i); err != nil {
+		return
+	}
+	i.IsLocked = true
 
 	return
 }
@@ -227,6 +293,25 @@ func (i *Item) Locked() (isLocked bool, err error) {
 	}
 
 	isLocked = variant.Value().(bool)
+	i.IsLocked = isLocked
+
+	return
+}
+
+// Unlock will unlock a locked Item. It will no-op if the Item is currently unlocked.
+func (i *Item) Unlock() (err error) {
+
+	if _, err = i.Locked(); err != nil {
+		return
+	}
+	if !i.IsLocked {
+		return
+	}
+
+	if err = i.collection.service.Unlock(i); err != nil {
+		return
+	}
+	i.IsLocked = false
 
 	return
 }
@@ -244,6 +329,7 @@ func (i *Item) Created() (created time.Time, err error) {
 	timeInt = variant.Value().(uint64)
 
 	created = time.Unix(int64(timeInt), 0)
+	i.CreatedAt = created
 
 	return
 }
@@ -253,7 +339,7 @@ func (i *Item) Created() (created time.Time, err error) {
 	that indicates if the collection has changed since the last call of Item.Modified.
 
 	Note that when calling NewItem, the internal library-tracked modification
-	time (Item.lastModified) will be set to the latest modification time of the Item
+	time (Item.LastModified) will be set to the latest modification time of the Item
 	itself as reported by Dbus rather than the time that NewItem was called.
 */
 func (i *Item) Modified() (modified time.Time, isChanged bool, err error) {
@@ -271,12 +357,54 @@ func (i *Item) Modified() (modified time.Time, isChanged bool, err error) {
 
 	if !i.lastModifiedSet {
 		// It's "nil", so set it to modified. We can't check for a zero-value in case Dbus has it as a zero-value.
-		i.lastModified = modified
+		i.LastModified = modified
 		i.lastModifiedSet = true
 	}
 
-	isChanged = modified.After(i.lastModified)
-	i.lastModified = modified
+	isChanged = modified.After(i.LastModified)
+	i.LastModified = modified
+
+	return
+}
+
+/*
+	setCreate updates the Item's creation time (as specified by Item.Created).
+	It seems that this does not generate automatically.
+*/
+func (i *Item) setCreate() (err error) {
+
+	var t time.Time = time.Now()
+
+	if err = i.Dbus.SetProperty(DbusItemCreated, uint64(t.Unix())); err != nil {
+		return
+	}
+	i.CreatedAt = t
+
+	if err = i.setModify(); err != nil {
+		return
+	}
+
+	return
+}
+
+/*
+	setModify updates the Item's modification time (as specified by Item.Modified).
+	It seems that this does not update automatically.
+*/
+func (i *Item) setModify() (err error) {
+
+	var t time.Time = time.Now()
+
+	err = i.Dbus.SetProperty(DbusItemModified, uint64(t.Unix()))
+	i.LastModified = t
+
+	return
+}
+
+// path is a *very* thin wrapper around Item.Dbus.Path(). It is needed for LockableObject membership.
+func (i *Item) path() (dbusPath dbus.ObjectPath) {
+
+	dbusPath = i.Dbus.Path()
 
 	return
 }

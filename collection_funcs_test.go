@@ -207,9 +207,9 @@ func TestCollection_Locked(t *testing.T) {
 	}
 
 	if isLocked, err = collection.Locked(); err != nil {
-		t.Errorf("failed to get lock status for collection '%v': %v", collection.PathName(), err.Error())
+		t.Errorf("failed to get lock status for collection '%v': %v", collection.path(), err.Error())
 	} else {
-		t.Logf("collection '%v' lock status: %v", collection.PathName(), isLocked)
+		t.Logf("collection '%v' lock status: %v", collection.path(), isLocked)
 	}
 
 	if err = svc.Close(); err != nil {

@@ -103,6 +103,9 @@ func (s *Service) CreateAliasedCollection(label, alias string) (collection *Coll
 	}
 
 	collection, err = NewCollection(s, path)
+	if err = collection.setCreate(); err != nil {
+		return
+	}
 
 	return
 }
@@ -124,12 +127,13 @@ func (s *Service) CreateCollection(label string) (collection *Collection, err er
 */
 func (s *Service) GetCollection(name string) (c *Collection, err error) {
 
-	var errs []error
+	var errs []error = make([]error, 0)
 	var colls []*Collection
-	var collLabel string
+	var pathName string
 
 	// First check for an alias.
 	if c, err = s.ReadAlias(name); err != nil && err != ErrDoesNotExist {
+		c = nil
 		return
 	}
 	if c != nil {
@@ -143,7 +147,12 @@ func (s *Service) GetCollection(name string) (c *Collection, err error) {
 		return
 	}
 	for _, i := range colls {
-		if i.name == name {
+		if pathName, err = NameFromPath(i.Dbus.Path()); err != nil {
+			errs = append(errs, err)
+			err = nil
+			continue
+		}
+		if pathName == name {
 			c = i
 			return
 		}
@@ -151,12 +160,7 @@ func (s *Service) GetCollection(name string) (c *Collection, err error) {
 
 	// Still nothing? Try by label.
 	for _, i := range colls {
-		if collLabel, err = i.Label(); err != nil {
-			errs = append(errs, err)
-			err = nil
-			continue
-		}
-		if collLabel == name {
+		if i.LabelName == name {
 			c = i
 			return
 		}
@@ -177,6 +181,8 @@ func (s *Service) GetCollection(name string) (c *Collection, err error) {
 	GetSecrets allows you to fetch values (Secret) from multiple Item object paths using this Service's Session.
 	An ErrMissingPaths will be returned for err if itemPaths is nil or empty.
 	The returned secrets is a map with itemPaths as the keys and their corresponding Secret as the value.
+	If you know which Collection your desired Secret is in, it is recommended to iterate through Collection.Items instead
+	(as Secrets returned here may have missing functionality).
 */
 func (s *Service) GetSecrets(itemPaths ...dbus.ObjectPath) (secrets map[dbus.ObjectPath]*Secret, err error) {
 
@@ -226,24 +232,30 @@ func (s *Service) GetSession() (ssn *Session, err error) {
 	return
 }
 
-/*
-	Lock locks an Unlocked Service, Collection, etc.
-	You can usually get objectPath for the object(s) to unlock via <object>.Dbus.Path().
-	If objectPaths is nil or empty, the Service's own path will be used.
-*/
-func (s *Service) Lock(objectPaths ...dbus.ObjectPath) (err error) {
+// Lock locks an Unlocked Collection or Item (LockableObject).
+func (s *Service) Lock(objects ...LockableObject) (err error) {
 
+	var variant dbus.Variant
+	var toLock []dbus.ObjectPath
 	// We only use these as destinations.
 	var locked []dbus.ObjectPath
 	var prompt *Prompt
 	var promptPath dbus.ObjectPath
 
-	if objectPaths == nil || len(objectPaths) == 0 {
-		objectPaths = []dbus.ObjectPath{s.Dbus.Path()}
+	if objects == nil || len(objects) == 0 {
+		err = ErrMissingObj
+		return
 	}
 
+	toLock = make([]dbus.ObjectPath, len(objects))
+
+	for idx, o := range objects {
+		toLock[idx] = o.path()
+	}
+	variant = dbus.MakeVariant(toLock)
+
 	if err = s.Dbus.Call(
-		DbusServiceLock, 0, objectPaths,
+		DbusServiceLock, 0, variant,
 	).Store(&locked, &promptPath); err != nil {
 		return
 	}
@@ -257,12 +269,17 @@ func (s *Service) Lock(objectPaths ...dbus.ObjectPath) (err error) {
 		}
 	}
 
+	for _, o := range objects {
+		go o.Locked()
+	}
+
 	return
 }
 
 /*
 	OpenSession returns a pointer to a Session from the Service.
 	It's a convenience function around NewSession.
+	However, NewService attaches a Session by default at Service.Session so this is likely unnecessary.
 */
 func (s *Service) OpenSession(algo, input string) (session *Session, output dbus.Variant, err error) {
 
@@ -318,6 +335,16 @@ func (s *Service) ReadAlias(alias string) (collection *Collection, err error) {
 	}
 
 	if collection, err = NewCollection(s, objectPath); err != nil {
+		return
+	}
+
+	return
+}
+
+// RemoveAlias is a thin wrapper around Service.SetAlias using the removal method specified there.
+func (s *Service) RemoveAlias(alias string) (err error) {
+
+	if err = s.SetAlias(alias, dbus.ObjectPath("/")); err != nil {
 		return
 	}
 
@@ -411,6 +438,7 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 
 /*
 	SetAlias sets an alias for an existing Collection.
+	(You can get its path via <Collection>.Dbus.Path().)
 	To remove an alias, set objectPath to dbus.ObjectPath("/").
 */
 func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error) {
@@ -426,23 +454,30 @@ func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error)
 	return
 }
 
-/*
-	Unlock unlocks a Locked Service, Collection, etc.
-	You can usually get objectPath for the object(s) to unlock via <object>.Dbus.Path().
-	If objectPaths is nil or empty, the Service's own path will be used.
-*/
-func (s *Service) Unlock(objectPaths ...dbus.ObjectPath) (err error) {
+// Unlock unlocks a locked Collection or Item (LockableObject).
+func (s *Service) Unlock(objects ...LockableObject) (err error) {
 
+	var variant dbus.Variant
+	var toUnlock []dbus.ObjectPath
+	// We only use these as destinations.
 	var unlocked []dbus.ObjectPath
 	var prompt *Prompt
 	var resultPath dbus.ObjectPath
 
-	if objectPaths == nil || len(objectPaths) == 0 {
-		objectPaths = []dbus.ObjectPath{s.Dbus.Path()}
+	if objects == nil || len(objects) == 0 {
+		err = ErrMissingObj
+		return
 	}
 
+	toUnlock = make([]dbus.ObjectPath, len(objects))
+
+	for idx, o := range objects {
+		toUnlock[idx] = o.path()
+	}
+	variant = dbus.MakeVariant(toUnlock)
+
 	if err = s.Dbus.Call(
-		DbusServiceUnlock, 0, objectPaths,
+		DbusServiceUnlock, 0, variant,
 	).Store(&unlocked, &resultPath); err != nil {
 		return
 	}
@@ -455,6 +490,18 @@ func (s *Service) Unlock(objectPaths ...dbus.ObjectPath) (err error) {
 			return
 		}
 	}
+
+	for _, o := range objects {
+		go o.Locked()
+	}
+
+	return
+}
+
+// path is a *very* thin wrapper around Service.Dbus.Path().
+func (s *Service) path() (dbusPath dbus.ObjectPath) {
+
+	dbusPath = s.Dbus.Path()
 
 	return
 }

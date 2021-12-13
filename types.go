@@ -58,6 +58,11 @@ type Prompt struct {
 	*DbusObject
 }
 
+type LockableObject interface {
+	Locked() (bool, error)
+	path() dbus.ObjectPath
+}
+
 /*
 	Service is a general SecretService interface, sort of handler for Dbus - it's used for fetching a Session, Collections, etc.
 	https://developer-old.gnome.org/libsecret/0.18/SecretService.html
@@ -67,6 +72,8 @@ type Service struct {
 	*DbusObject
 	// Session is a default Session initiated automatically.
 	Session *Session `json:"-"`
+	// IsLocked indicates if the Service is locked or not. Status updated by Service.Locked.
+	IsLocked bool `json:"locked"`
 }
 
 /*
@@ -82,24 +89,31 @@ type Session struct {
 
 /*
 	Collection is an accessor for libsecret collections, which contain multiple Secret Item items.
+	Do not change any of these values directly; use the associated methods instead.
 	Reference:
 	https://developer-old.gnome.org/libsecret/0.18/SecretCollection.html
 	https://specifications.freedesktop.org/secret-service/latest/ch03.html
 */
 type Collection struct {
 	*DbusObject
-	// lastModified is unexported because it's important that API users don't change it; it's used by Collection.Modified.
-	lastModified time.Time
+	// IsLocked indicates if the Collection is locked or not. Status updated by Collection.Locked.
+	IsLocked bool `json:"locked"`
+	// LabelName is the Collection's label (as given by Collection.Label and modified by Collection.Relabel).
+	LabelName string `json:"label"`
+	// CreatedAt is when this Collection was created (used by Collection.Created).
+	CreatedAt time.Time `json:"created"`
+	// LastModified is when this Item was last changed; it's used by Collection.Modified.
+	LastModified time.Time `json:"modified"`
+	// Alias is the Collection's alias (as handled by Service.ReadAlias and Service.SetAlias).
+	Alias string `json:"alias"`
 	// lastModifiedSet is unexported; it's only used to determine if this is a first-initialization of the modification time or not.
 	lastModifiedSet bool
-	// name is used for the Collection's name/label so the Dbus path doesn't need to be parsed all the time.
-	name string
 	// service tracks the Service this Collection was created from.
 	service *Service
 }
 
 /*
-	Item is an entry in a Collection that contains a Secret.
+	Item is an entry in a Collection that contains a Secret. Do not change any of these values directly; use the associated methods instead.
 	https://developer-old.gnome.org/libsecret/0.18/SecretItem.html
 	https://specifications.freedesktop.org/secret-service/latest/re03.html
 */
@@ -107,8 +121,18 @@ type Item struct {
 	*DbusObject
 	// Secret is the corresponding Secret object.
 	Secret *Secret `json:"secret"`
-	// lastModified is unexported because it's important that API users don't change it; it's used by Collection.Modified.
-	lastModified time.Time
+	// IsLocked indicates if the Item is locked or not. Status updated by Item.Locked.
+	IsLocked bool
+	// Attrs are the Item's attributes (as would be returned via Item.Attributes).
+	Attrs map[string]string `json:"attributes"`
+	// LabelName is the Item's label (as given by Item.Label and modified by Item.Relabel).
+	LabelName string `json:"label"`
+	// SecretType is the Item's secret type (as returned by Item.Type).
+	SecretType string `json:"type"`
+	// CreatedAt is when this Item was created (used by Item.Created).
+	CreatedAt time.Time `json:"created"`
+	// LastModified is when this Item was last changed; it's used by Item.Modified.
+	LastModified time.Time `json:"modified"`
 	// lastModifiedSet is unexported; it's only used to determine if this is a first-initialization of the modification time or not.
 	lastModifiedSet bool
 	/*

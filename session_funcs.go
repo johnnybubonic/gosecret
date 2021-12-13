@@ -42,3 +42,11 @@ func (s *Session) Close() (err error) {
 
 	return
 }
+
+// path is a *very* thin wrapper around Session.Dbus.Path().
+func (s *Session) path() (dbusPath dbus.ObjectPath) {
+
+	dbusPath = s.Dbus.Path()
+
+	return
+}

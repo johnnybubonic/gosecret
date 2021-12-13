@@ -12,8 +12,10 @@ var (
 	ErrInvalidProperty error = errors.New("invalid variant type; cannot convert")
 	// ErrNoDbusConn gets triggered if a connection to Dbus can't be detected.
 	ErrNoDbusConn error = errors.New("no valid dbus connection")
-	// ErrMissingPaths gets triggered if one or more Dbus object paths are expected but non/not enough are received.
+	// ErrMissingPaths gets triggered if one or more Dbus object paths are expected but none/not enough are received.
 	ErrMissingPaths error = errors.New("one or more Dbus object paths were expected but an insufficient amount were received")
+	// ErrMissingObj gets triggered if one or more gosecret-native objects are expected but none/not enough are received.
+	ErrMissingObj error = errors.New("one or more objects were expected but an insufficient amount were received")
 	// ErrMissingAttrs gets triggered if attributes were expected but not passed.
 	ErrMissingAttrs error = errors.New("attributes must not be empty/nil")
 	// ErrDoesNotExist gets triggered if a Collection, Item, etc. is attempted to be fetched but none exists via the specified identifier.
