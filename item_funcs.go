@@ -1,11 +1,11 @@
 package gosecret
 
 import (
-	`strconv`
-	`strings`
-	`time`
+	"strconv"
+	"strings"
+	"time"
 
-	`github.com/godbus/dbus/v5`
+	"github.com/godbus/dbus/v5"
 )
 
 // NewItem returns a pointer to an Item based on Collection and a Dbus path.
@@ -158,6 +158,7 @@ func (i *Item) Label() (label string, err error) {
 	}
 
 	label = variant.Value().(string)
+	i.LabelName = label
 
 	return
 }
