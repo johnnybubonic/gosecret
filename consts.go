@@ -1,7 +1,7 @@
 package gosecret
 
 import (
-	`github.com/godbus/dbus/v5`
+	"github.com/godbus/dbus/v5"
 )
 
 // Constants for use with gosecret.
@@ -30,6 +30,7 @@ const (
 
 // Libsecret/SecretService special values.
 var (
+	// DbusRemoveAliasPath is used to remove an alias from a Collection and/or Item.
 	DbusRemoveAliasPath dbus.ObjectPath = dbus.ObjectPath("/")
 )
 
