@@ -57,16 +57,17 @@ func (s *Service) Collections() (collections []*Collection, err error) {
 
 	paths = variant.Value().([]dbus.ObjectPath)
 
-	collections = make([]*Collection, len(paths))
+	collections = make([]*Collection, 0)
 
-	for idx, path := range paths {
+	for _, path := range paths {
+		coll = nil
 		if coll, err = NewCollection(s, path); err != nil {
 			// return
 			errs = append(errs, err)
 			err = nil
 			continue
 		}
-		collections[idx] = coll
+		collections = append(collections, coll)
 	}
 	err = NewErrors(err)
 
@@ -364,6 +365,7 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 	var ok bool
 	var c *Collection
 	var cPath dbus.ObjectPath
+	var item *Item
 	var errs []error = make([]error, 0)
 
 	if attributes == nil || len(attributes) == 0 {
@@ -375,8 +377,8 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 		DbusServiceSearchItems, 0, attributes,
 	).Store(&unlocked, &locked)
 
-	lockedItems = make([]*Item, len(locked))
-	unlockedItems = make([]*Item, len(unlocked))
+	lockedItems = make([]*Item, 0)
+	unlockedItems = make([]*Item, 0)
 
 	if collectionObjs, err = s.Collections(); err != nil {
 		return
@@ -389,8 +391,9 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 	}
 
 	// Locked items
-	for idx, i := range locked {
+	for _, i := range locked {
 
+		item = nil
 		cPath = dbus.ObjectPath(filepath.Dir(string(i)))
 
 		if c, ok = collections[cPath]; !ok {
@@ -400,18 +403,20 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 			continue
 		}
 
-		if lockedItems[idx], err = NewItem(c, i); err != nil {
+		if item, err = NewItem(c, i); err != nil {
 			errs = append(errs, errors.New(fmt.Sprintf(
 				"could not create Item for locked item %v", string(i),
 			)))
 			err = nil
 			continue
 		}
+		lockedItems = append(lockedItems, item)
 	}
 
 	// Unlocked items
-	for idx, i := range unlocked {
+	for _, i := range unlocked {
 
+		item = nil
 		cPath = dbus.ObjectPath(filepath.Dir(string(i)))
 
 		if c, ok = collections[cPath]; !ok {
@@ -421,13 +426,14 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 			continue
 		}
 
-		if unlockedItems[idx], err = NewItem(c, i); err != nil {
+		if item, err = NewItem(c, i); err != nil {
 			errs = append(errs, errors.New(fmt.Sprintf(
 				"could not create Item for unlocked item %v", string(i),
 			)))
 			err = nil
 			continue
 		}
+		unlockedItems = append(unlockedItems, item)
 	}
 
 	if errs != nil && len(errs) > 0 {

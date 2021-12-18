@@ -148,6 +148,7 @@ func TestCollection_Label(t *testing.T) {
 		t.Fatalf("NewService failed: %v", err.Error())
 	}
 
+	t.Logf("Attempting to get label of collection: %v", defaultCollectionLabel)
 	if collection, err = svc.GetCollection(defaultCollectionLabel); err != nil {
 		t.Errorf(
 			"failed when fetching collection '%v': %v",

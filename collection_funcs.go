@@ -146,15 +146,16 @@ func (c *Collection) Items() (items []*Item, err error) {
 
 	paths = variant.Value().([]dbus.ObjectPath)
 
-	items = make([]*Item, len(paths))
+	items = make([]*Item, 0)
 
-	for idx, path := range paths {
+	for _, path := range paths {
+		item = nil
 		if item, err = NewItem(c, path); err != nil {
 			errs = append(errs, err)
 			err = nil
 			continue
 		}
-		items[idx] = item
+		items = append(items, item)
 	}
 	err = NewErrors(err)
 
@@ -245,6 +246,7 @@ func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 	var paths []dbus.ObjectPath
 	var errs []error = make([]error, 0)
 	var attrs map[string]string = make(map[string]string, 0)
+	var item *Item
 
 	attrs["profile"] = profile
 
@@ -254,14 +256,16 @@ func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 		return
 	}
 
-	items = make([]*Item, len(paths))
+	items = make([]*Item, 0)
 
-	for idx, path := range paths {
-		if items[idx], err = NewItem(c, path); err != nil {
+	for _, path := range paths {
+		item = nil
+		if item, err = NewItem(c, path); err != nil {
 			errs = append(errs, err)
 			err = nil
 			continue
 		}
+		items = append(items, item)
 	}
 	err = NewErrors(err)
 
