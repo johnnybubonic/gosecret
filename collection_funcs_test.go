@@ -1,9 +1,9 @@
 package gosecret
 
 import (
-	`testing`
+	"testing"
 
-	`github.com/godbus/dbus/v5`
+	"github.com/godbus/dbus/v5"
 )
 
 // Some functions are covered in the Service tests.
@@ -57,7 +57,8 @@ func TestCollection_Items(t *testing.T) {
 	var collection *Collection
 	var items []*Item
 	var item *Item
-	var searchItemResults []*Item
+	var searchResultsUnlocked []*Item
+	var searchResultsLocked []*Item
 	var secret *Secret
 	var err error
 
@@ -109,12 +110,12 @@ func TestCollection_Items(t *testing.T) {
 		)
 	} else {
 
-		if searchItemResults, err = collection.SearchItems(testItemLabel); err != nil {
+		if searchResultsUnlocked, searchResultsLocked, err = collection.service.SearchItems(itemAttrs); err != nil {
 			t.Errorf("failed to find item '%v' via Collection.SearchItems: %v", string(item.Dbus.Path()), err.Error())
-		} else if len(searchItemResults) == 0 {
+		} else if (len(searchResultsLocked) + len(searchResultsUnlocked)) == 0 {
 			t.Errorf("failed to find item '%v' via Collection.SearchItems, returned 0 results (should be at least 1)", testItemLabel)
 		} else {
-			t.Logf("found %v results for Collection.SearchItems", len(searchItemResults))
+			t.Logf("found %v results for Collection.SearchItems", len(searchResultsUnlocked)+len(searchResultsLocked))
 		}
 
 		if err = item.Delete(); err != nil {

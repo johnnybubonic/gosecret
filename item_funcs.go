@@ -106,10 +106,17 @@ func (i *Item) ChangeItemType(newItemType string) (err error) {
 // Delete removes an Item from a Collection.
 func (i *Item) Delete() (err error) {
 
+	var call *dbus.Call
 	var promptPath dbus.ObjectPath
 	var prompt *Prompt
 
-	if err = i.Dbus.Call(DbusItemDelete, 0).Store(&promptPath); err != nil {
+	if call = i.Dbus.Call(
+		DbusItemDelete, 0,
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&promptPath); err != nil {
 		return
 	}
 
@@ -127,6 +134,8 @@ func (i *Item) Delete() (err error) {
 // GetSecret returns the Secret in an Item using a Session.
 func (i *Item) GetSecret(session *Session) (secret *Secret, err error) {
 
+	var call *dbus.Call
+
 	if session == nil {
 		err = ErrNoDbusConn
 	}
@@ -135,9 +144,13 @@ func (i *Item) GetSecret(session *Session) (secret *Secret, err error) {
 		return
 	}
 
-	if err = i.Dbus.Call(
+	if call = i.Dbus.Call(
 		DbusItemGetSecret, 0, session.Dbus.Path(),
-	).Store(&secret); err != nil {
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&secret); err != nil {
 		return
 	}
 
@@ -246,15 +259,15 @@ func (i *Item) ReplaceAttributes(newAttrs map[string]string) (err error) {
 // SetSecret sets the Secret for an Item.
 func (i *Item) SetSecret(secret *Secret) (err error) {
 
-	var c *dbus.Call
+	var call *dbus.Call
 
-	c = i.Dbus.Call(
+	if call = i.Dbus.Call(
 		DbusItemSetSecret, 0,
-	)
-	if c.Err != nil {
-		err = c.Err
+	); call.Err != nil {
+		err = call.Err
 		return
 	}
+
 	i.Secret = secret
 
 	if _, _, err = i.Modified(); err != nil {

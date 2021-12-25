@@ -1,6 +1,8 @@
 package gosecret
 
 import (
+	"fmt"
+
 	"github.com/godbus/dbus/v5"
 )
 
@@ -32,13 +34,21 @@ func NewSession(service *Service, path dbus.ObjectPath) (session *Session, err e
 // Close cleanly closes a Session.
 func (s *Session) Close() (err error) {
 
-	var c *dbus.Call
+	var call *dbus.Call
 
-	c = s.Dbus.Call(
+	if call = s.Dbus.Call(
 		DbusSessionClose, 0,
-	)
-
-	_ = c
+	); call.Err != nil {
+		/*
+			I... still haven't 100% figured out why this happens, but the session DOES seem to close...?
+			PRs or input welcome.
+			TODO: figure out why this error gets triggered.
+		*/
+		if call.Err.Error() != fmt.Sprintf("The name %v was not provided by any .service files", DbusInterfaceSession) {
+			err = call.Err
+			return
+		}
+	}
 
 	return
 }

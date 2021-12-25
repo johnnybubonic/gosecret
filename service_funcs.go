@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	`time`
+	"time"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -38,7 +38,13 @@ func NewService() (service *Service, err error) {
 // Close cleanly closes a Service and all its underlying connections (e.g. Service.Session).
 func (s *Service) Close() (err error) {
 
-	err = s.Session.Close()
+	if err = s.Session.Close(); err != nil {
+		return
+	}
+
+	if err = s.Conn.Close(); err != nil {
+		return
+	}
 
 	return
 }
@@ -80,6 +86,7 @@ func (s *Service) Collections() (collections []*Collection, err error) {
 */
 func (s *Service) CreateAliasedCollection(label, alias string) (collection *Collection, err error) {
 
+	var call *dbus.Call
 	var variant *dbus.Variant
 	var path dbus.ObjectPath
 	var promptPath dbus.ObjectPath
@@ -90,9 +97,13 @@ func (s *Service) CreateAliasedCollection(label, alias string) (collection *Coll
 	props[DbusCollectionCreated] = dbus.MakeVariant(uint64(time.Now().Unix()))
 	props[DbusCollectionModified] = dbus.MakeVariant(uint64(time.Now().Unix()))
 
-	if err = s.Dbus.Call(
+	if call = s.Dbus.Call(
 		DbusServiceCreateCollection, 0, props, alias,
-	).Store(&path, &promptPath); err != nil {
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&path, &promptPath); err != nil {
 		return
 	}
 
@@ -197,6 +208,7 @@ func (s *Service) GetSecrets(itemPaths ...dbus.ObjectPath) (secrets map[dbus.Obj
 		}
 	*/
 	var results map[dbus.ObjectPath][]interface{}
+	var call *dbus.Call
 
 	if itemPaths == nil || len(itemPaths) == 0 {
 		err = ErrMissingPaths
@@ -207,9 +219,13 @@ func (s *Service) GetSecrets(itemPaths ...dbus.ObjectPath) (secrets map[dbus.Obj
 	results = make(map[dbus.ObjectPath][]interface{}, len(itemPaths))
 
 	// TODO: trigger a Service.Unlock for any locked items?
-	if err = s.Dbus.Call(
+	if call = s.Dbus.Call(
 		DbusServiceGetSecrets, 0, itemPaths, s.Session.Dbus.Path(),
-	).Store(&results); err != nil {
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&results); err != nil {
 		return
 	}
 
@@ -236,6 +252,7 @@ func (s *Service) GetSession() (ssn *Session, err error) {
 // Lock locks an Unlocked Collection or Item (LockableObject).
 func (s *Service) Lock(objects ...LockableObject) (err error) {
 
+	var call *dbus.Call
 	var toLock []dbus.ObjectPath
 	// We only use these as destinations.
 	var locked []dbus.ObjectPath
@@ -253,9 +270,13 @@ func (s *Service) Lock(objects ...LockableObject) (err error) {
 		toLock[idx] = o.path()
 	}
 
-	if err = s.Dbus.Call(
+	if call = s.Dbus.Call(
 		DbusServiceLock, 0, toLock,
-	).Store(&locked, &promptPath); err != nil {
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&locked, &promptPath); err != nil {
 		return
 	}
 
@@ -285,6 +306,7 @@ func (s *Service) Lock(objects ...LockableObject) (err error) {
 */
 func (s *Service) OpenSession(algo, input string) (session *Session, output dbus.Variant, err error) {
 
+	var call *dbus.Call
 	var path dbus.ObjectPath
 	var inputVariant dbus.Variant
 
@@ -298,9 +320,13 @@ func (s *Service) OpenSession(algo, input string) (session *Session, output dbus
 	// TODO: confirm this.
 	// Possible flags are dbus.Flags consts: https://pkg.go.dev/github.com/godbus/dbus#Flags
 	// Oddly, there is no "None" flag. So it's explicitly specified as a null byte.
-	if err = s.Dbus.Call(
+	if call = s.Dbus.Call(
 		DbusServiceOpenSession, 0, algo, inputVariant,
-	).Store(&output, &path); err != nil {
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&output, &path); err != nil {
 		return
 	}
 
@@ -316,17 +342,20 @@ func (s *Service) OpenSession(algo, input string) (session *Session, output dbus
 */
 func (s *Service) ReadAlias(alias string) (collection *Collection, err error) {
 
+	var call *dbus.Call
 	var objectPath dbus.ObjectPath
 
-	err = s.Dbus.Call(
+	if call = s.Dbus.Call(
 		DbusServiceReadAlias, 0, alias,
-	).Store(&objectPath)
-
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
 	/*
 		TODO: Confirm that a nonexistent alias will NOT cause an error to return.
 			  If it does, alter the below logic.
 	*/
-	if err != nil {
+	if err = call.Store(&objectPath); err != nil {
 		return
 	}
 
@@ -358,6 +387,7 @@ func (s *Service) RemoveAlias(alias string) (err error) {
 */
 func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*Item, lockedItems []*Item, err error) {
 
+	var call *dbus.Call
 	var locked []dbus.ObjectPath
 	var unlocked []dbus.ObjectPath
 	var collectionObjs []*Collection
@@ -373,9 +403,13 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 		return
 	}
 
-	err = s.Dbus.Call(
+	if call = s.Dbus.Call(
 		DbusServiceSearchItems, 0, attributes,
-	).Store(&unlocked, &locked)
+	); call.Err != nil {
+	}
+	if err = call.Store(&unlocked, &locked); err != nil {
+		return
+	}
 
 	lockedItems = make([]*Item, 0)
 	unlockedItems = make([]*Item, 0)
@@ -450,18 +484,17 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 */
 func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error) {
 
-	var c *dbus.Call
+	var call *dbus.Call
 	var collection *Collection
 
 	if collection, err = s.GetCollection(alias); err != nil {
 		return
 	}
 
-	c = s.Dbus.Call(
+	if call = s.Dbus.Call(
 		DbusServiceSetAlias, 0, alias, objectPath,
-	)
-
-	if err = c.Err; err != nil {
+	); call.Err != nil {
+		err = call.Err
 		return
 	}
 
@@ -477,6 +510,7 @@ func (s *Service) SetAlias(alias string, objectPath dbus.ObjectPath) (err error)
 // Unlock unlocks a locked Collection or Item (LockableObject).
 func (s *Service) Unlock(objects ...LockableObject) (err error) {
 
+	var call *dbus.Call
 	var toUnlock []dbus.ObjectPath
 	// We only use these as destinations.
 	var unlocked []dbus.ObjectPath
@@ -494,9 +528,13 @@ func (s *Service) Unlock(objects ...LockableObject) (err error) {
 		toUnlock[idx] = o.path()
 	}
 
-	if err = s.Dbus.Call(
+	if call = s.Dbus.Call(
 		DbusServiceUnlock, 0, toUnlock,
-	).Store(&unlocked, &resultPath); err != nil {
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&unlocked, &resultPath); err != nil {
 		return
 	}
 

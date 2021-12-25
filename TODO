@@ -1,1 +1,3 @@
 - Benchmarking?
+
+- call .Close() on dbus.Conns

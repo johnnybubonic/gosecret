@@ -65,6 +65,7 @@ func NewCollection(service *Service, path dbus.ObjectPath) (coll *Collection, er
 */
 func (c *Collection) CreateItem(label string, attrs map[string]string, secret *Secret, replace bool, itemType ...string) (item *Item, err error) {
 
+	var call *dbus.Call
 	var prompt *Prompt
 	var path dbus.ObjectPath
 	var promptPath dbus.ObjectPath
@@ -84,9 +85,13 @@ func (c *Collection) CreateItem(label string, attrs map[string]string, secret *S
 	props[DbusItemCreated] = dbus.MakeVariant(uint64(time.Now().Unix()))
 	// props[DbusItemModified] = dbus.MakeVariant(uint64(time.Now().Unix()))
 
-	if err = c.Dbus.Call(
+	if call = c.Dbus.Call(
 		DbusCollectionCreateItem, 0, props, secret, replace,
-	).Store(&path, &promptPath); err != nil {
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&path, &promptPath); err != nil {
 		return
 	}
 
@@ -114,10 +119,17 @@ func (c *Collection) CreateItem(label string, attrs map[string]string, secret *S
 */
 func (c *Collection) Delete() (err error) {
 
+	var call *dbus.Call
 	var promptPath dbus.ObjectPath
 	var prompt *Prompt
 
-	if err = c.Dbus.Call(DbusCollectionDelete, 0).Store(&promptPath); err != nil {
+	if call = c.Dbus.Call(
+		DbusCollectionDelete, 0,
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&promptPath); err != nil {
 		return
 	}
 
@@ -243,6 +255,7 @@ func (c *Collection) Relabel(newLabel string) (err error) {
 */
 func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 
+	var call *dbus.Call
 	var paths []dbus.ObjectPath
 	var errs []error = make([]error, 0)
 	var attrs map[string]string = make(map[string]string, 0)
@@ -250,9 +263,13 @@ func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 
 	attrs["profile"] = profile
 
-	if err = c.Dbus.Call(
+	if call = c.Dbus.Call(
 		DbusCollectionSearchItems, 0, attrs,
-	).Store(&paths); err != nil {
+	); call.Err != nil {
+		err = call.Err
+		return
+	}
+	if err = call.Store(&paths); err != nil {
 		return
 	}
 
@@ -277,11 +294,10 @@ func (c *Collection) SetAlias(alias string) (err error) {
 
 	var call *dbus.Call
 
-	call = c.service.Dbus.Call(
+	if call = c.service.Dbus.Call(
 		DbusServiceSetAlias, 0, alias, c.Dbus.Path(),
-	)
-
-	if err = call.Err; err != nil {
+	); call.Err != nil {
+		err = call.Err
 		return
 	}
 
