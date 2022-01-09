@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
+	`r00t2.io/goutils/multierr`
 )
 
 // NewService returns a pointer to a new Service connection.
@@ -49,13 +50,17 @@ func (s *Service) Close() (err error) {
 	return
 }
 
-// Collections returns a slice of Collection items accessible to this Service.
+/*
+	Collections returns a slice of Collection items accessible to this Service.
+
+	err MAY be a *multierr.MultiError.
+*/
 func (s *Service) Collections() (collections []*Collection, err error) {
 
 	var paths []dbus.ObjectPath
 	var variant dbus.Variant
 	var coll *Collection
-	var errs []error = make([]error, 0)
+	var errs *multierr.MultiError = multierr.NewMultiError()
 
 	if variant, err = s.Dbus.GetProperty(DbusServiceCollections); err != nil {
 		return
@@ -68,14 +73,16 @@ func (s *Service) Collections() (collections []*Collection, err error) {
 	for _, path := range paths {
 		coll = nil
 		if coll, err = NewCollection(s, path); err != nil {
-			// return
-			errs = append(errs, err)
+			errs.AddError(err)
 			err = nil
 			continue
 		}
 		collections = append(collections, coll)
 	}
-	err = NewErrors(err)
+
+	if !errs.IsEmpty() {
+		err = errs
+	}
 
 	return
 }
@@ -136,10 +143,12 @@ func (s *Service) CreateCollection(label string) (collection *Collection, err er
 /*
 	GetCollection returns a single Collection based on the name (name can also be an alias).
 	It's a helper function that avoids needing to make multiple calls in user code.
+
+	err MAY be a *multierr.MultiError.
 */
 func (s *Service) GetCollection(name string) (c *Collection, err error) {
 
-	var errs []error = make([]error, 0)
+	var errs *multierr.MultiError = multierr.NewMultiError()
 	var colls []*Collection
 	var pathName string
 
@@ -160,7 +169,7 @@ func (s *Service) GetCollection(name string) (c *Collection, err error) {
 	}
 	for _, i := range colls {
 		if pathName, err = NameFromPath(i.Dbus.Path()); err != nil {
-			errs = append(errs, err)
+			errs.AddError(err)
 			err = nil
 			continue
 		}
@@ -179,9 +188,8 @@ func (s *Service) GetCollection(name string) (c *Collection, err error) {
 	}
 
 	// Couldn't find it by the given name.
-	if errs != nil || len(errs) > 0 {
-		errs = append([]error{ErrDoesNotExist}, errs...)
-		err = NewErrors(errs...)
+	if !errs.IsEmpty() {
+		err = errs
 	} else {
 		err = ErrDoesNotExist
 	}
@@ -384,6 +392,8 @@ func (s *Service) RemoveAlias(alias string) (err error) {
 
 /*
 	SearchItems searches all Collection objects and returns all matches based on the map of attributes.
+
+	err MAY be a *multierr.MultiError.
 */
 func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*Item, lockedItems []*Item, err error) {
 
@@ -396,7 +406,7 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 	var c *Collection
 	var cPath dbus.ObjectPath
 	var item *Item
-	var errs []error = make([]error, 0)
+	var errs *multierr.MultiError = multierr.NewMultiError()
 
 	if attributes == nil || len(attributes) == 0 {
 		err = ErrMissingAttrs
@@ -431,16 +441,17 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 		cPath = dbus.ObjectPath(filepath.Dir(string(i)))
 
 		if c, ok = collections[cPath]; !ok {
-			errs = append(errs, errors.New(fmt.Sprintf(
+			errs.AddError(errors.New(fmt.Sprintf(
 				"could not find matching Collection for locked item %v", string(i),
 			)))
 			continue
 		}
 
 		if item, err = NewItem(c, i); err != nil {
-			errs = append(errs, errors.New(fmt.Sprintf(
-				"could not create Item for locked item %v", string(i),
+			errs.AddError(errors.New(fmt.Sprintf(
+				"could not create Item for locked item %v; error follows", string(i),
 			)))
+			errs.AddError(err)
 			err = nil
 			continue
 		}
@@ -454,24 +465,25 @@ func (s *Service) SearchItems(attributes map[string]string) (unlockedItems []*It
 		cPath = dbus.ObjectPath(filepath.Dir(string(i)))
 
 		if c, ok = collections[cPath]; !ok {
-			errs = append(errs, errors.New(fmt.Sprintf(
+			errs.AddError(errors.New(fmt.Sprintf(
 				"could not find matching Collection for unlocked item %v", string(i),
 			)))
 			continue
 		}
 
 		if item, err = NewItem(c, i); err != nil {
-			errs = append(errs, errors.New(fmt.Sprintf(
-				"could not create Item for unlocked item %v", string(i),
+			errs.AddError(errors.New(fmt.Sprintf(
+				"could not create Item for unlocked item %v; error follows", string(i),
 			)))
+			errs.AddError(err)
 			err = nil
 			continue
 		}
 		unlockedItems = append(unlockedItems, item)
 	}
 
-	if errs != nil && len(errs) > 0 {
-		err = NewErrors(errs...)
+	if !errs.IsEmpty() {
+		err = errs
 	}
 
 	return

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
+	"r00t2.io/goutils/multierr"
 )
 
 /*
@@ -146,13 +147,16 @@ func (c *Collection) Delete() (err error) {
 	return
 }
 
-// Items returns a slice of Item pointers in the Collection.
+/*
+	Items returns a slice of Item pointers in the Collection.
+	err MAY be a *multierr.MultiError.
+*/
 func (c *Collection) Items() (items []*Item, err error) {
 
 	var paths []dbus.ObjectPath
 	var item *Item
 	var variant dbus.Variant
-	var errs []error = make([]error, 0)
+	var errs *multierr.MultiError = multierr.NewMultiError()
 
 	if variant, err = c.Dbus.GetProperty(DbusCollectionItems); err != nil {
 		return
@@ -165,13 +169,16 @@ func (c *Collection) Items() (items []*Item, err error) {
 	for _, path := range paths {
 		item = nil
 		if item, err = NewItem(c, path); err != nil {
-			errs = append(errs, err)
+			errs.AddError(err)
 			err = nil
 			continue
 		}
 		items = append(items, item)
 	}
-	err = NewErrors(err)
+
+	if !errs.IsEmpty() {
+		err = errs
+	}
 
 	return
 }
@@ -248,10 +255,12 @@ func (c *Collection) Relabel(newLabel string) (err error) {
 }
 
 /*
-	SearchItems searches a Collection for a matching profile string.
+	SearchItems searches a Collection for a matching "profile" string.
 	It's mostly a carry-over from go-libsecret, and is here for convenience. IT MAY BE REMOVED IN THE FUTURE.
 
 	I promise it's not useful for any other implementation/storage of SecretService whatsoever.
+
+	err MAY be a *multierr.MultiError.
 
 	Deprecated: Use Service.SearchItems instead.
 */
@@ -259,7 +268,7 @@ func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 
 	var call *dbus.Call
 	var paths []dbus.ObjectPath
-	var errs []error = make([]error, 0)
+	var errs *multierr.MultiError = multierr.NewMultiError()
 	var attrs map[string]string = make(map[string]string, 0)
 	var item *Item
 
@@ -280,13 +289,16 @@ func (c *Collection) SearchItems(profile string) (items []*Item, err error) {
 	for _, path := range paths {
 		item = nil
 		if item, err = NewItem(c, path); err != nil {
-			errs = append(errs, err)
+			errs.AddError(err)
 			err = nil
 			continue
 		}
 		items = append(items, item)
 	}
-	err = NewErrors(err)
+
+	if !errs.IsEmpty() {
+		err = errs
+	}
 
 	return
 }

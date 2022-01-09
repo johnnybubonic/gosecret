@@ -84,5 +84,9 @@ Usage
 
 Full documentation can be found via inline documentation.
 Additionally, use either https://pkg.go.dev/r00t2.io/gosecret or https://pkg.go.dev/golang.org/x/tools/cmd/godoc (or `go doc`) in the source root.
+
+Note that many functions/methods may return a (r00t2.io/goutils/)multierr.MultiError (https://pkg.go.dev/r00t2.io/goutils/multierr#MultiError),
+which you may attempt to typeswitch back to a *multierr.MultiErr to receive the original errors in their native error format (MultiError.Errors).
+The functions/methods which may return a MultiError are noted as such in their individual documentation.
 */
 package gosecret

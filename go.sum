@@ -1,4 +1,9 @@
+github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/godbus/dbus/v5 v5.0.6 h1:mkgN1ofwASrYnJ5W6U/BxG15eXXXjirgZc7CLqkcaro=
 github.com/godbus/dbus/v5 v5.0.6/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+r00t2.io/goutils v1.1.2 h1:zOOqNHQ/HpJVggV5NTXBcd7FQtBP2C/sMLkHw3YvBzU=
+r00t2.io/goutils v1.1.2/go.mod h1:9ObJI9S71wDLTOahwoOPs19DhZVYrOh4LEHmQ8SW4Lk=
+r00t2.io/sysutils v1.1.1/go.mod h1:Wlfi1rrJpoKBOjWiYM9rw2FaiZqraD6VpXyiHgoDo/o=

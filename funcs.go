@@ -4,6 +4,7 @@ import (
 	`strings`
 
 	`github.com/godbus/dbus/v5`
+	`r00t2.io/goutils/multierr`
 )
 
 // isPrompt returns a boolean that is true if path is/requires a prompt(ed path) and false if it is/does not.
@@ -63,19 +64,27 @@ func pathIsValid(path interface{}) (ok bool, err error) {
 
 /*
 	validConnPath condenses the checks for connIsValid and pathIsValid into one func due to how frequently this check is done.
-	err is a MultiError, which can be treated as an error.error. (See https://pkg.go.dev/builtin#error)
+
+	If err is not nil, it IS a *multierr.MultiError.
 */
 func validConnPath(conn *dbus.Conn, path interface{}) (cr *ConnPathCheckResult, err error) {
 
-	var connErr error
-	var pathErr error
+	var errs *multierr.MultiError = multierr.NewMultiError()
 
 	cr = new(ConnPathCheckResult)
 
-	cr.ConnOK, connErr = connIsValid(conn)
-	cr.PathOK, pathErr = pathIsValid(path)
+	if cr.ConnOK, err = connIsValid(conn); err != nil {
+		errs.AddError(err)
+		err = nil
+	}
+	if cr.PathOK, err = pathIsValid(path); err != nil {
+		errs.AddError(err)
+		err = nil
+	}
 
-	err = NewErrors(connErr, pathErr)
+	if !errs.IsEmpty() {
+		err = errs
+	}
 
 	return
 }

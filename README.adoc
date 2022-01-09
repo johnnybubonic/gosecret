@@ -224,6 +224,8 @@ func main() {
 }
 ----
 
+Note that many functions/methods may return a https://pkg.go.dev/r00t2.io/goutils/multierr#MultiError[`(r00t2.io/goutils/)multierr.MultiError`^], which you may attempt to typeswitch to receive the original errors in their native error format. The functions/methods which may return a MultiError are noted as such in their individual documentation.
+
 == Library Hacking
 
 === Reference
