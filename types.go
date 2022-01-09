@@ -74,6 +74,17 @@ type Service struct {
 	Session *Session `json:"-"`
 	// IsLocked indicates if the Service is locked or not. Status updated by Service.Locked.
 	IsLocked bool `json:"locked"`
+	/*
+		Legacy indicates that this SecretService implementation
+		breaks current spec by implementing the legacy/obsolete draft spec rather than current libsecret spec
+		for the Dbus API.
+
+		If you're using SecretService with KeePassXC, for instance, or a much older version of Gnome-Keyring *before* libsecret integration(?),
+		or if you are getting strange errors when performing a Service.SearchItems, you probably need to enable this field on the Service returned
+		by NewService. The coverage of this field may expand in the future, but currently it only prevents the (non-existent, in legacy spec)
+		Type property from being read or written on Items during NewItem and Collection.CreateItem.
+	*/
+	Legacy bool `json:"is_legacy"`
 }
 
 /*
@@ -83,7 +94,7 @@ type Service struct {
 */
 type Session struct {
 	*DbusObject
-	// collection tracks the Service this Session was created from.
+	// service tracks the Service this Session was created from.
 	service *Service
 }
 

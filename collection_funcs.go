@@ -80,7 +80,9 @@ func (c *Collection) CreateItem(label string, attrs map[string]string, secret *S
 	}
 
 	props[DbusItemLabel] = dbus.MakeVariant(label)
-	props[DbusItemType] = dbus.MakeVariant(typeString)
+	if !c.service.Legacy {
+		props[DbusItemType] = dbus.MakeVariant(typeString)
+	}
 	props[DbusItemAttributes] = dbus.MakeVariant(attrs)
 	props[DbusItemCreated] = dbus.MakeVariant(uint64(time.Now().Unix()))
 	// props[DbusItemModified] = dbus.MakeVariant(uint64(time.Now().Unix()))

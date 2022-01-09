@@ -282,6 +282,11 @@ func (i *Item) Type() (itemType string, err error) {
 
 	var variant dbus.Variant
 
+	// Legacy spec.
+	if i.collection.service.Legacy {
+		return
+	}
+
 	if variant, err = i.Dbus.GetProperty(DbusItemType); err != nil {
 		return
 	}
