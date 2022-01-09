@@ -153,3 +153,56 @@ func NameFromPath(path dbus.ObjectPath) (name string, err error) {
 
 	return
 }
+
+/*
+	CheckErrIsFromLegacy takes an error.Error from e.g.:
+
+			Service.SearchItems
+			Collection.CreateItem
+			NewItem
+			Item.ChangeItemType
+			Item.Type
+
+	and (in order) attempt to typeswitch to a *multierr.MultiError, then iterate through
+	the *multierr.MultiError.Errors, attempt to typeswitch each of them to a Dbus.Error, and then finally
+	check if it is regarding a missing Type property.
+
+	This is *very explicitly* only useful for the above functions/methods. If used anywhere else,
+	it's liable to return an incorrect isLegacy even if parsed == true.
+
+	It is admittedly convoluted and obtuse, but this saves a lot of boilerplate for users.
+	It wouldn't be necessary if projects didn't insist on using the legacy draft SecretService specification.
+	But here we are.
+
+	isLegacy is true if this Service's API destination is legacy spec. Note that this is checking for
+	very explicit conditions; isLegacy may return false but it is in fact running on a legacy API.
+	Don't rely on this too much.
+
+	parsed is true if we found an error type we were able to perform logic of determination on.
+*/
+func CheckErrIsFromLegacy(err error) (isLegacy, parsed bool) {
+
+	switch e := err.(type) {
+	case *multierr.MultiError:
+		parsed = true
+		for _, i := range e.Errors {
+			switch e2 := i.(type) {
+			case dbus.Error:
+				if e2.Name == "org.freedesktop.DBus.Error.UnknownProperty" {
+					isLegacy = true
+					return
+				}
+			default:
+				continue
+			}
+		}
+	case dbus.Error:
+		parsed = true
+		if e.Name == "org.freedesktop.DBus.Error.UnknownProperty" {
+			isLegacy = true
+			return
+		}
+	}
+
+	return
+}

@@ -74,7 +74,19 @@ type Service struct {
 		when performing a Service.SearchItems, you probably need to enable this field on the
 		Service returned by NewService. The coverage of this field may expand in the future, but
 		currently it only prevents/suppresses the (non-existent, in legacy spec) Type property
-		from being read or written on Items during NewItem and Collection.CreateItem respectively.
+		from being read or written on Items during e.g.:
+
+			Service.SearchItems
+			Collection.CreateItem
+			NewItem
+			Item.ChangeItemType
+			Item.Type
+
+		It will perform a no-op if enabled in the above contexts to maintain cross-compatability
+		in codebase between legacy and proper current spec systems, avoiding an error return.
+
+		You can use CheckErrIsFromLegacy if Service.Legacy is false and Service.SearchItems returns
+		a non-nil err to determine if this Service is (probably) interfacing with a legacy spec API.
 	*/
 	Legacy bool `json:"is_legacy"`
 }

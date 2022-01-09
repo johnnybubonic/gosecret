@@ -257,6 +257,27 @@ func (s *Service) GetSession() (ssn *Session, err error) {
 	return
 }
 
+// Scrapping this idea for now; it would require introspection on a known Item path.
+/*
+	IsLegacy indicates with a decent likelihood of accuracy if this Service is
+	connected to a legacy spec Secret Service (true) or if the spec is current (false).
+
+	It also returns a confidence indicator as a float, which indicates how accurate
+	the guess (because it is a guess) may/is likely to be (as a percentage). For example,
+	if confidence is expressed as 0.25, the result of legacyAPI has a 25% of being accurate.
+*/
+/*
+func (s *Service) IsLegacy() (legacyAPI bool, confidence int) {
+
+	var maxCon int
+
+	// Test 1, property introspection on Item. We're looking for a Type property.
+	DbusInterfaceItem
+
+	return
+}
+*/
+
 // Lock locks an Unlocked Collection or Item (LockableObject).
 func (s *Service) Lock(objects ...LockableObject) (err error) {
 

@@ -85,6 +85,11 @@ func (i *Item) ChangeItemType(newItemType string) (err error) {
 
 	var variant dbus.Variant
 
+	// Legacy spec.
+	if i.collection.service.Legacy {
+		return
+	}
+
 	if strings.TrimSpace(newItemType) == "" {
 		newItemType = DbusDefaultItemType
 	}
